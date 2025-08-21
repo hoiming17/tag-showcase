@@ -4,7 +4,7 @@ FROM python:3.11-slim
 # Set the working directory
 WORKDIR /app
 
-# Install all necessary system dependencies for a headless browser
+# Install all necessary system dependencies for a headless browser, including gnupg
 RUN apt-get update -y && \
     apt-get install -y \
     ca-certificates \
@@ -31,7 +31,8 @@ RUN apt-get update -y && \
     libxss1 \
     lsb-release \
     wget \
-    xdg-utils && \
+    xdg-utils \
+    gnupg && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Chromium (the browser executable)
