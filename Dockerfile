@@ -16,8 +16,8 @@ ENV CHROMIUM_EXECUTABLE_PATH="/usr/bin/google-chrome"
 # Copy your application files
 COPY . .
 
-# Install Python dependencies
-RUN pip3 install --no-cache-dir -r requirements.txt
+# Install Python dependencies using the flag to override the "externally managed environment" error
+RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
 
 # Expose the port
 EXPOSE 5000
