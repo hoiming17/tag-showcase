@@ -1,26 +1,47 @@
-# Use a pre-configured image that contains a headless browser
-FROM zenika/alpine-chrome:latest
+# Use a standard, clean Python image
+FROM python:3.11-slim
 
-# Set the working directory for your application
+# Set the working directory
 WORKDIR /app
 
-# Switch to the root user to install packages
-USER root
+# Install system dependencies for a headless browser
+RUN apt-get update && apt-get install -y \
+    gnupg \
+    wget \
+    libnss3 \
+    libxss1 \
+    libasound2 \
+    libappindicator3-1 \
+    libsecret-1-0 \
+    libu2f-udev \
+    libvulkan1 \
+    libxcb-dri3-0 \
+    libxcomposite1 \
+    libxcursor1 \
+    libxdamage1 \
+    libxext6 \
+    libxi6 \
+    libxrandr2 \
+    libxrender1 \
+    libxtst6 \
+    lsb-release \
+    xdg-utils \
+    -qq
 
-# Install Python and pip
-RUN apk update && apk add --no-cache python3 py3-pip
+# Install Chromium (the browser executable)
+RUN wget -qO- https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /etc/apt/keyrings/google-keyring.gpg && \
+    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
+    apt-get update && \
+    apt-get install -y google-chrome-stable --no-install-recommends
 
-# Switch back to the default user for security
-USER chrome
+# Set the environment variable for Selenium
+ENV CHROMIUM_EXECUTABLE_PATH="/usr/bin/google-chrome"
 
 # Copy your application files
 COPY . .
 
-# Install Python dependencies (as the non-root user)
-RUN pip3 install --no-cache-dir -r requirements.txt --break-system-packages
-
-# Set the environment variable for Selenium
-ENV CHROMIUM_EXECUTABLE_PATH="/usr/bin/chromium"
+# Install Python dependencies
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Expose the port
 EXPOSE 5000
