@@ -5,3 +5,5 @@ beautifulsoup4
 selenium
 webdriver-manager
 gunicorn
+Flask-SQLAlchemy
+psycopg2-binary

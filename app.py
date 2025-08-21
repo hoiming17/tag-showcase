@@ -1,10 +1,11 @@
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+# app.py
+
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-# CHANGE IS HERE: We need to explicitly point to the Service.
 from selenium.webdriver.chrome.service import Service
 import os
 import time
@@ -234,6 +235,21 @@ def showcase(username):
         grade_counts=grade_counts
     )
 
+# --- NEW SECURE DOWNLOAD ROUTE ---
+# WARNING: This route makes your user data publicly accessible if not protected.
+# We will make it only accessible to the admin user.
+@app.route("/download-users")
+def download_users_data():
+    logged_in_user = session.get('username')
+    users = load_users()
+    logged_in_user_data = users.get(logged_in_user)
+
+    if logged_in_user_data and logged_in_user_data.get('is_admin'):
+        return send_file('users.json', as_attachment=True)
+    
+    return "Access Denied: Admin role required.", 403
+
+# --- REST OF THE ROUTES (NO CHANGES) ---
 @app.route("/admin")
 def admin_dashboard():
     users = load_users()
