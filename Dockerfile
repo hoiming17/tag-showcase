@@ -1,22 +1,20 @@
-# Use the Google Cloud SDK image as a base, as it includes all necessary dependencies
-FROM google/cloud-sdk
+# Use a pre-built Selenium image that includes Chrome and ChromeDriver
+FROM selenium/standalone-chrome
 
 # Set the working directory
 WORKDIR /app
 
-# The base image already has a working version of wget, gnupg, and Chrome.
-# We just need to install Python and pip.
+# The Selenium image comes with Python, so we just need to install pip.
+# The executable path for Chrome is already correctly set within the image's environment.
 RUN apt-get update -y && \
-    apt-get install -y python3 python3-pip && \
+    apt-get install -y python3-pip && \
     rm -rf /var/lib/apt/lists/*
-
-# Set the environment variable for Selenium
-ENV CHROMIUM_EXECUTABLE_PATH="/usr/bin/google-chrome"
 
 # Copy your application files
 COPY . .
 
-# Install Python dependencies using the flag to override the "externally managed environment" error
+# Install Python dependencies
+# We still need the "--break-system-packages" flag to install packages on this Debian-based image.
 RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
 
 # Expose the port
