@@ -1,18 +1,32 @@
-# Use a Python runtime with a more complete set of libraries
-# `bullseye` is a newer, more robust base for this kind of work
+# Use an official Python runtime as a parent image
 FROM python:3.9-slim-bullseye
 
-# Install system dependencies for Chromium, including core libraries
+# Install core dependencies for a headless environment
 RUN apt-get update && apt-get install -y \
-    chromium \
+    wget \
+    gnupg \
+    libxcomposite1 \
+    libxcursor1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxi6 \
+    libxrandr2 \
+    libasound2 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libgdk-pixbuf2.0-0 \
+    libgtk-3-0 \
     libglib2.0-0 \
     libnss3 \
-    libxcomposite1 \
+    libxkbcommon-x11-0 \
     libxtst6 \
     libxrender1 \
     libfontconfig1 \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Chromium separately
+RUN apt-get update && apt-get install -y chromium --no-install-recommends
 
 # Set the working directory in the container
 WORKDIR /usr/src/app
