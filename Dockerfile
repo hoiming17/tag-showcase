@@ -1,5 +1,5 @@
 # Use a pre-configured image that contains a headless browser
-FROM zenika/alpine-chrome:126
+FROM zenika/alpine-chrome:latest
 
 # Set the working directory for your application
 WORKDIR /app
