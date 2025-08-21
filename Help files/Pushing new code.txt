@@ -1,0 +1,45 @@
+That's great news! Congratulations on getting your website online.
+
+Now that everything is set up, the process for making edits is very straightforward and follows a standard workflow for modern web development.
+
+You will make your code changes on your local computer and then push those changes to your GitHub repository. Render will automatically detect the new changes and deploy them.
+
+The Workflow for Making Edits:
+Step 1: Make Your Code Changes
+Using your preferred text editor (like VS Code), make all the changes you want to your website's files (app.py, files in the templates folder, users.json, etc.) on your local machine.
+
+Step 2: Commit the Changes
+After you have saved all your changes, open your terminal or command prompt in your project folder. You need to tell Git which files you want to save.
+
+Stage your changes:
+
+Bash
+
+git add .
+This command adds all the changed files to a "staging area" for the next commit.
+
+Commit the changes:
+
+Bash
+
+git commit -m "Your descriptive commit message"
+Replace "Your descriptive commit message" with a short, clear description of what you changed (e.g., "Fixed a bug on the login page" or "Added a new feature").
+
+Step 3: Push the Changes to GitHub
+This is the final step where you upload your committed changes to your GitHub repository.
+
+Bash
+
+git push origin main
+This command sends all of your local commits to the main branch of your remote repository on GitHub.
+
+Render's Automation
+Once Render detects that new changes have been pushed to your GitHub repository, it will automatically start a new deployment. You can see this happening on your Render dashboard. It will:
+
+Pull the latest code.
+
+Rebuild your Docker image with the new files.
+
+Deploy the updated container.
+
+Your website will then automatically be updated with your changes, usually within a few minutes.

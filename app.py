@@ -145,20 +145,11 @@ def get_grade_for_sort(card):
 # --- Routes ---
 @app.route("/")
 def index():
-    try:
-        if 'username' in session:
-            username = session['username']
-            users = load_users()
-            user_data = users.get(username)
-            if user_data:
-                if user_data.get('is_admin'):
-                    return redirect(url_for('admin_dashboard'))
-                return redirect(url_for('showcase', username=username))
-            else:
-                session.clear()
-    except KeyError:
-        session.clear()
+    if 'username' in session:
+        # User is logged in, redirect to their showcase
+        return redirect(url_for('showcase', username=session['username']))
     
+    # User is not logged in, show the login page
     return render_template('login.html')
 
 @app.route("/register", methods=["POST"])
