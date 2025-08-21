@@ -1,48 +1,23 @@
-# Use an official Python runtime as a parent image
-FROM python:3.9-slim-bullseye
+# Use a pre-configured image that contains a headless browser
+FROM zenika/alpine-chrome:126
 
-# Install core dependencies for a headless environment
-RUN apt-get update && apt-get install -y \
-    wget \
-    gnupg \
-    libxcomposite1 \
-    libxcursor1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxi6 \
-    libxrandr2 \
-    libasound2 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libgdk-pixbuf2.0-0 \
-    libgtk-3-0 \
-    libglib2.0-0 \
-    libnss3 \
-    libxkbcommon-x11-0 \
-    libxtst6 \
-    libxrender1 \
-    libfontconfig1 \
-    --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+# Set the working directory for your application
+WORKDIR /app
 
-# Install Chromium separately
-RUN apt-get update && apt-get install -y chromium --no-install-recommends
+# Install Python and pip
+RUN apk add --no-cache python3 py3-pip
 
-# Set the working directory in the container
-WORKDIR /usr/src/app
-
-# Copy the requirements file and install the dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy the rest of the application code
+# Copy your application files
 COPY . .
 
-# Tell Selenium where the Chromium executable is
+# Install Python dependencies
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+# Set the environment variable for Selenium
 ENV CHROMIUM_EXECUTABLE_PATH="/usr/bin/chromium"
 
-# Expose the port the app runs on
+# Expose the port
 EXPOSE 5000
 
-# Run the application with Gunicorn
+# Run your application
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
