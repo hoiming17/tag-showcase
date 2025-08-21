@@ -27,19 +27,17 @@ def save_users(users_data):
     with open('users.json', 'w') as f:
         json.dump(users_data, f, indent=4)
 
+# --- UPDATED scrape_card_info function ---
 def scrape_card_info(cert_number):
     url = f"https://my.taggrading.com/card/{cert_number}"
 
-    # We get the path from the environment variable set in the Dockerfile
-    # This is the key change for container compatibility
     chrome_executable_path = os.environ.get('CHROMIUM_EXECUTABLE_PATH')
     options = webdriver.ChromeOptions()
     options.add_argument("--headless")
-    options.add_argument("--no-sandbox") # Required for Docker
-    options.add_argument("--disable-dev-shm-usage") # Required for Docker
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--log-level=3")
     
-    # We pass the executable path directly to the Service
     service = Service(executable_path=chrome_executable_path)
     
     driver = None
@@ -52,72 +50,48 @@ def scrape_card_info(cert_number):
 
         line1, line2, line_subset, line3, line4 = "", "", "", "", ""
         
+        # New selectors to handle updated website structure
         try:
-            player_label = soup.find("span", string="Player name:")
-            if player_label and player_label.find_next_sibling("span"):
-                line1 = player_label.find_next_sibling("span").get_text(strip=True)
-        except Exception:
-            pass
-
-        try:
-            set_name_label = soup.find("span", string="Set name:")
-            if set_name_label and set_name_label.parent:
-                set_name_full_text = set_name_label.parent.get_text(strip=True)
-                line2 = set_name_full_text.replace("Set name:", "").strip()
-        except Exception:
-            pass
-        
-        try:
-            subset_label = soup.find("span", string="Subset:")
-            if subset_label and subset_label.parent:
-                subset_full_text = subset_label.parent.get_text(strip=True)
-                line_subset = subset_full_text.replace("Subset:", "").strip()
-                if line_subset == "-":
-                    line_subset = ""
-        except Exception:
-            pass
-
-        try:
-            variation_label = soup.find("span", string="Variation:")
-            if variation_label and variation_label.parent:
-                variation_full_text = variation_label.parent.get_text(strip=True)
-                line3 = variation_full_text.replace("Variation:", "").strip()
-                if line3 == "-":
-                    line3 = ""
-        except Exception:
-            pass
-
-        try:
-            grade_anchor = soup.find("div", string="View Score")
-            if grade_anchor:
-                common_container = grade_anchor.parent.parent
-                grade_container = common_container.find_all("div", recursive=False)[1]
-                grade_number_div = grade_container.find("div")
-                grade_text_div = grade_number_div.find_next_sibling("div")
-                
-                if grade_number_div and grade_text_div:
-                    grade_number = grade_number_div.get_text(strip=True)
-                    grade_text = grade_text_div.get_text(strip=True)
-                    line4 = f"{grade_number} {grade_text}"
-            else:
-                tag_score_anchor = soup.find("div", string="TAG Score")
-                if tag_score_anchor:
-                    tag_score_num_div = tag_score_anchor.find_previous_sibling("div")
-                    tag_score_num = tag_score_num_div.get_text(strip=True) if tag_score_num_div else ""
-                    grade_container = tag_score_anchor.parent.find_next_sibling("div")
+            # Find the main container for card details
+            card_info_container = soup.find("div", class_="card-info")
+            if card_info_container:
+                # Find all rows within the container
+                rows = card_info_container.find_all("div", class_="row")
+                for row in rows:
+                    label_div = row.find("div", class_="col-sm-6 text-sm-end text-truncate pe-0 text-muted")
+                    value_div = row.find("div", class_="col-sm-6 text-sm-start text-truncate ps-0")
                     
-                    if grade_container:
-                        grade_divs = grade_container.find_all("div", recursive=False)
-                        if len(grade_divs) >= 2:
-                            grade_number = grade_divs[0].get_text(strip=True)
-                            grade_text = grade_divs[1].get_text(strip=True)
-                            line4 = f"{grade_number} {grade_text} ({tag_score_num})"
-                            
+                    if label_div and value_div:
+                        label = label_div.get_text(strip=True)
+                        value = value_div.get_text(strip=True)
+                        
+                        if "Player name:" in label:
+                            line1 = value
+                        elif "Set name:" in label:
+                            line2 = value
+                        elif "Subset:" in label:
+                            line_subset = value
+                        elif "Variation:" in label:
+                            line3 = value
         except Exception as e:
-            line4 = ""
+            print(f"Error parsing card info details: {e}")
+            pass
+
+        try:
+            # Re-check the grade selector as it has also changed
+            tag_score_section = soup.find("section", class_="section-tag-score")
+            if tag_score_section:
+                tag_score = tag_score_section.find("h2", class_="display-4").get_text(strip=True)
+                
+                grade_info = tag_score_section.find("p", class_="lead")
+                grade_text = grade_info.get_text(strip=True).replace(' ', ' - ').replace('  ', ' ') if grade_info else ""
+
+                line4 = f"{tag_score} {grade_text}"
+        except Exception:
+            pass
 
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"An error occurred during scraping: {e}")
         return {
             "cert_number": cert_number, "line1": "", "line2": "", "line_subset": "", 
             "line3": "", "line4": "", "hashtags": [],
@@ -147,10 +121,7 @@ def get_grade_for_sort(card):
 @app.route("/")
 def index():
     if 'username' in session:
-        # User is logged in, redirect to their showcase
         return redirect(url_for('showcase', username=session['username']))
-    
-    # User is not logged in, show the login page
     return render_template('login.html')
 
 @app.route("/register", methods=["POST"])
@@ -235,21 +206,6 @@ def showcase(username):
         grade_counts=grade_counts
     )
 
-# --- NEW SECURE DOWNLOAD ROUTE ---
-# WARNING: This route makes your user data publicly accessible if not protected.
-# We will make it only accessible to the admin user.
-@app.route("/download-users")
-def download_users_data():
-    logged_in_user = session.get('username')
-    users = load_users()
-    logged_in_user_data = users.get(logged_in_user)
-
-    if logged_in_user_data and logged_in_user_data.get('is_admin'):
-        return send_file('users.json', as_attachment=True)
-    
-    return "Access Denied: Admin role required.", 403
-
-# --- REST OF THE ROUTES (NO CHANGES) ---
 @app.route("/admin")
 def admin_dashboard():
     users = load_users()
