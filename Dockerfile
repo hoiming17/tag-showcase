@@ -5,7 +5,7 @@ FROM zenika/alpine-chrome:latest
 WORKDIR /app
 
 # Install Python and pip
-RUN apk add --no-cache python3 py3-pip
+RUN apk update && apk add --no-cache python3 py3-pip
 
 # Copy your application files
 COPY . .
