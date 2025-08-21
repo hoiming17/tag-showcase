@@ -17,7 +17,7 @@ USER chrome
 COPY . .
 
 # Install Python dependencies (as the non-root user)
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt --break-system-packages
 
 # Set the environment variable for Selenium
 ENV CHROMIUM_EXECUTABLE_PATH="/usr/bin/chromium"
