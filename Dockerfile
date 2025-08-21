@@ -1,30 +1,42 @@
-# Use a pre-built Selenium image that includes Chrome and ChromeDriver
-FROM selenium/standalone-chrome
+# Use a robust, flexible base image with common dependencies
+FROM buildpack-deps:stable-curl
 
-# Switch to the root user to perform system updates and package installations
+# Install a headless browser (Google Chrome) and its dependencies
 USER root
-
-# Install Python and pip
 RUN apt-get update -y && \
-    apt-get install -y python3 python3-pip && \
+    apt-get install -y \
+    google-chrome-stable \
+    python3 \
+    python3-pip \
+    libnss3 \
+    libxss1 \
+    libappindicator1 \
+    libindicator7 \
+    fonts-liberation \
+    libgbm1 \
+    libgdk-pixbuf2.0-0 \
+    gnupg \
+    wget && \
     rm -rf /var/lib/apt/lists/*
 
-# Set the correct executable path for your application
-# The path to the Chrome binary in this image is /usr/bin/google-chrome
-ENV CHROMIUM_EXECUTABLE_PATH="/usr/bin/google-chrome"
+# Add the user that our application will run as.
+# This is a security best practice.
+RUN addgroup --system app && adduser --system --group app
 
 # Set the working directory
 WORKDIR /app
 
+# Set the Chromium path environment variable for your application
+ENV CHROMIUM_EXECUTABLE_PATH="/usr/bin/google-chrome"
+
 # Copy your application files
 COPY . .
 
-# Change ownership of the application directory to the non-root user
-# This is crucial for the "Permission denied" error
-RUN chown -R seluser:seluser /app
+# Change ownership of the files to the app user
+RUN chown -R app:app /app
 
-# Switch back to the default non-root user for security
-USER seluser
+# Switch to the non-root user
+USER app
 
 # Install Python dependencies
 RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
