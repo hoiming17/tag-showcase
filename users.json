@@ -58,57 +58,7 @@
                 "line4": "9 MINT",
                 "image": "https://devblock-tag.s3.us-west-2.amazonaws.com/slab-images/Y7187824_Slabbed_FRONT.jpg",
                 "link": "https://my.taggrading.com/card/Y7187824"
-            },
-            {
-                "cert_number": "D6796531",
-                "line1": "",
-                "line2": "",
-                "line_subset": "",
-                "line3": "",
-                "line4": "",
-                "hashtags": [],
-                "image": "https://devblock-tag.s3.us-west-2.amazonaws.com/slab-images/D6796531_Slabbed_FRONT.jpg",
-                "link": "https://my.taggrading.com/card/D6796531"
             }
         ]
-    },
-    "dumpandchasesc": {
-        "password": "scrypt:32768:8:1$7aRG5LydH2AM1FwM$bd528e1a02b1957dc1aea7aa1af7f5176ba6161ee03f4c53e1ee22d06cb76b8d82667ec55c93bae91b465a31c87c74fbbf18691b9e25a3527829a97875ec5aae",
-        "collection": [
-            {
-                "cert_number": "E2725998",
-                "line1": "",
-                "line2": "",
-                "line_subset": "",
-                "line3": "",
-                "line4": "",
-                "hashtags": [],
-                "image": "https://devblock-tag.s3.us-west-2.amazonaws.com/slab-images/E2725998_Slabbed_FRONT.jpg",
-                "link": "https://my.taggrading.com/card/E2725998"
-            },
-            {
-                "cert_number": "H4962735",
-                "line1": "",
-                "line2": "",
-                "line_subset": "",
-                "line3": "",
-                "line4": "",
-                "hashtags": [],
-                "image": "https://devblock-tag.s3.us-west-2.amazonaws.com/slab-images/H4962735_Slabbed_FRONT.jpg",
-                "link": "https://my.taggrading.com/card/H4962735"
-            },
-            {
-                "cert_number": "W2563376",
-                "line1": "",
-                "line2": "",
-                "line_subset": "",
-                "line3": "",
-                "line4": "",
-                "hashtags": [],
-                "image": "https://devblock-tag.s3.us-west-2.amazonaws.com/slab-images/W2563376_Slabbed_FRONT.jpg",
-                "link": "https://my.taggrading.com/card/W2563376"
-            }
-        ],
-        "is_admin": false
     }
 }

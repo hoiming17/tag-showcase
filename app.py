@@ -1,11 +1,10 @@
-# app.py
-
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+# CHANGE IS HERE: We need to explicitly point to the Service.
 from selenium.webdriver.chrome.service import Service
 import os
 import time
@@ -14,17 +13,12 @@ import json
 app = Flask(__name__)
 app.secret_key = 'a_very_secret_key'
 
-# --- UPDATED Helper Functions ---
+# --- Helper Functions ---
 def load_users():
-    """Loads user data from the JSON file, handling potential errors."""
+    """Loads user data from the JSON file, handling empty files."""
     if os.path.exists('users.json') and os.path.getsize('users.json') > 0:
-        try:
-            with open('users.json', 'r') as f:
-                return json.load(f)
-        except json.JSONDecodeError:
-            # If the file is corrupted, log the error and return an empty dictionary
-            print("Error: users.json file is corrupted. Returning an empty user list.")
-            return {}
+        with open('users.json', 'r') as f:
+            return json.load(f)
     return {}
 
 def save_users(users_data):
@@ -35,13 +29,16 @@ def save_users(users_data):
 def scrape_card_info(cert_number):
     url = f"https://my.taggrading.com/card/{cert_number}"
 
+    # We get the path from the environment variable set in the Dockerfile
+    # This is the key change for container compatibility
     chrome_executable_path = os.environ.get('CHROMIUM_EXECUTABLE_PATH')
     options = webdriver.ChromeOptions()
     options.add_argument("--headless")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--no-sandbox") # Required for Docker
+    options.add_argument("--disable-dev-shm-usage") # Required for Docker
     options.add_argument("--log-level=3")
     
+    # We pass the executable path directly to the Service
     service = Service(executable_path=chrome_executable_path)
     
     driver = None
@@ -53,66 +50,73 @@ def scrape_card_info(cert_number):
         soup = BeautifulSoup(page_source, "html.parser")
 
         line1, line2, line_subset, line3, line4 = "", "", "", "", ""
-
-        # --- Scrape the card details by finding specific labels ---
+        
         try:
-            player_name_label = soup.find("span", string="Player name:")
-            if player_name_label and player_name_label.next_sibling:
-                line1 = player_name_label.next_sibling.strip()
+            player_label = soup.find("span", string="Player name:")
+            if player_label and player_label.find_next_sibling("span"):
+                line1 = player_label.find_next_sibling("span").get_text(strip=True)
+        except Exception:
+            pass
 
+        try:
             set_name_label = soup.find("span", string="Set name:")
-            if set_name_label and set_name_label.next_sibling:
-                line2 = set_name_label.next_sibling.strip()
-            
-            subset_label = soup.find("span", string="Subset:")
-            if subset_label and subset_label.next_sibling:
-                line_subset = subset_label.next_sibling.strip()
-                if line_subset == "-": line_subset = ""
-
-            variation_label = soup.find("span", string="Variation:")
-            if variation_label and variation_label.next_sibling:
-                line3 = variation_label.next_sibling.strip()
-                if line3 == "-": line3 = ""
-        except Exception as e:
-            print(f"Error scraping card details: {e}")
+            if set_name_label and set_name_label.parent:
+                set_name_full_text = set_name_label.parent.get_text(strip=True)
+                line2 = set_name_full_text.replace("Set name:", "").strip()
+        except Exception:
             pass
         
-        # --- Handle grade scenarios (View Score vs. TAG Score) ---
         try:
-            # Scenario 1: Find "View Score"
-            grade_container = soup.find("div", string="View Score")
-            if grade_container:
-                # Find the parent of the grade container
-                grade_parent = grade_container.parent.parent
-                # The grade number and text are in the second direct child div
-                grade_info_div = grade_parent.find_all("div", recursive=False)[1]
-                # Find the number and text within that div
-                grade_number = grade_info_div.find_all("div", recursive=False)[0].get_text(strip=True)
-                grade_text = grade_info_div.find_all("div", recursive=False)[1].get_text(strip=True)
-                line4 = f"{grade_number} {grade_text}"
-            
-            # Scenario 2: If "View Score" is not found, look for "TAG Score"
-            else:
-                tag_score_container = soup.find("div", string="TAG Score")
-                if tag_score_container:
-                    # Get the number preceding "TAG Score"
-                    tag_score_num_div = tag_score_container.find_previous_sibling("div")
-                    tag_score_num = tag_score_num_div.get_text(strip=True) if tag_score_num_div else ""
-                    
-                    # Get the main grade number and text from the next sibling container
-                    grade_info_container = tag_score_container.parent.find_next_sibling("div")
-                    if grade_info_container:
-                        grade_number = grade_info_container.find_all("div", recursive=False)[0].get_text(strip=True)
-                        grade_text = grade_info_container.find_all("div", recursive=False)[1].get_text(strip=True)
-                        
-                        # Format the line with the TAG Score number in parentheses
-                        line4 = f"{grade_number} {grade_text} ({tag_score_num})"
-        except Exception as e:
-            print(f"Error scraping grade info: {e}")
+            subset_label = soup.find("span", string="Subset:")
+            if subset_label and subset_label.parent:
+                subset_full_text = subset_label.parent.get_text(strip=True)
+                line_subset = subset_full_text.replace("Subset:", "").strip()
+                if line_subset == "-":
+                    line_subset = ""
+        except Exception:
             pass
 
+        try:
+            variation_label = soup.find("span", string="Variation:")
+            if variation_label and variation_label.parent:
+                variation_full_text = variation_label.parent.get_text(strip=True)
+                line3 = variation_full_text.replace("Variation:", "").strip()
+                if line3 == "-":
+                    line3 = ""
+        except Exception:
+            pass
+
+        try:
+            grade_anchor = soup.find("div", string="View Score")
+            if grade_anchor:
+                common_container = grade_anchor.parent.parent
+                grade_container = common_container.find_all("div", recursive=False)[1]
+                grade_number_div = grade_container.find("div")
+                grade_text_div = grade_number_div.find_next_sibling("div")
+                
+                if grade_number_div and grade_text_div:
+                    grade_number = grade_number_div.get_text(strip=True)
+                    grade_text = grade_text_div.get_text(strip=True)
+                    line4 = f"{grade_number} {grade_text}"
+            else:
+                tag_score_anchor = soup.find("div", string="TAG Score")
+                if tag_score_anchor:
+                    tag_score_num_div = tag_score_anchor.find_previous_sibling("div")
+                    tag_score_num = tag_score_num_div.get_text(strip=True) if tag_score_num_div else ""
+                    grade_container = tag_score_anchor.parent.find_next_sibling("div")
+                    
+                    if grade_container:
+                        grade_divs = grade_container.find_all("div", recursive=False)
+                        if len(grade_divs) >= 2:
+                            grade_number = grade_divs[0].get_text(strip=True)
+                            grade_text = grade_divs[1].get_text(strip=True)
+                            line4 = f"{grade_number} {grade_text} ({tag_score_num})"
+                            
+        except Exception as e:
+            line4 = ""
+
     except Exception as e:
-        print(f"An error occurred during scraping: {e}")
+        print(f"An error occurred: {e}")
         return {
             "cert_number": cert_number, "line1": "", "line2": "", "line_subset": "", 
             "line3": "", "line4": "", "hashtags": [],
@@ -142,7 +146,10 @@ def get_grade_for_sort(card):
 @app.route("/")
 def index():
     if 'username' in session:
+        # User is logged in, redirect to their showcase
         return redirect(url_for('showcase', username=session['username']))
+    
+    # User is not logged in, show the login page
     return render_template('login.html')
 
 @app.route("/register", methods=["POST"])
