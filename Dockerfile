@@ -4,8 +4,9 @@ FROM python:3.11-slim
 # Set the working directory
 WORKDIR /app
 
-# Install system dependencies for a headless browser
-RUN apt-get update && apt-get install -y \
+# Install all necessary system dependencies for a headless browser
+RUN apt-get update -y && \
+    apt-get install -y \
     ca-certificates \
     fonts-liberation \
     libappindicator3-1 \
@@ -16,7 +17,6 @@ RUN apt-get update && apt-get install -y \
     libcurl4 \
     libdrm2 \
     libgbm1 \
-    libgdk-pixbuf2.0-0 \
     libglib2.0-0 \
     libgtk-3-0 \
     libnspr4 \
@@ -31,8 +31,7 @@ RUN apt-get update && apt-get install -y \
     libxss1 \
     lsb-release \
     wget \
-    xdg-utils \
-    -qq && \
+    xdg-utils && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Chromium (the browser executable)
