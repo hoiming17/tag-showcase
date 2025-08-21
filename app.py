@@ -14,12 +14,17 @@ import json
 app = Flask(__name__)
 app.secret_key = 'a_very_secret_key'
 
-# --- Helper Functions ---
+# --- UPDATED Helper Functions ---
 def load_users():
-    """Loads user data from the JSON file, handling empty files."""
+    """Loads user data from the JSON file, handling potential errors."""
     if os.path.exists('users.json') and os.path.getsize('users.json') > 0:
-        with open('users.json', 'r') as f:
-            return json.load(f)
+        try:
+            with open('users.json', 'r') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            # If the file is corrupted, log the error and return an empty dictionary
+            print("Error: users.json file is corrupted. Returning an empty user list.")
+            return {}
     return {}
 
 def save_users(users_data):
@@ -27,7 +32,6 @@ def save_users(users_data):
     with open('users.json', 'w') as f:
         json.dump(users_data, f, indent=4)
 
-# --- UPDATED scrape_card_info function ---
 def scrape_card_info(cert_number):
     url = f"https://my.taggrading.com/card/{cert_number}"
 
@@ -49,45 +53,62 @@ def scrape_card_info(cert_number):
         soup = BeautifulSoup(page_source, "html.parser")
 
         line1, line2, line_subset, line3, line4 = "", "", "", "", ""
-        
-        # New selectors to handle updated website structure
+
+        # --- Scrape the card details by finding specific labels ---
         try:
-            # Find the main container for card details
-            card_info_container = soup.find("div", class_="card-info")
-            if card_info_container:
-                # Find all rows within the container
-                rows = card_info_container.find_all("div", class_="row")
-                for row in rows:
-                    label_div = row.find("div", class_="col-sm-6 text-sm-end text-truncate pe-0 text-muted")
-                    value_div = row.find("div", class_="col-sm-6 text-sm-start text-truncate ps-0")
-                    
-                    if label_div and value_div:
-                        label = label_div.get_text(strip=True)
-                        value = value_div.get_text(strip=True)
-                        
-                        if "Player name:" in label:
-                            line1 = value
-                        elif "Set name:" in label:
-                            line2 = value
-                        elif "Subset:" in label:
-                            line_subset = value
-                        elif "Variation:" in label:
-                            line3 = value
+            player_name_label = soup.find("span", string="Player name:")
+            if player_name_label and player_name_label.next_sibling:
+                line1 = player_name_label.next_sibling.strip()
+
+            set_name_label = soup.find("span", string="Set name:")
+            if set_name_label and set_name_label.next_sibling:
+                line2 = set_name_label.next_sibling.strip()
+            
+            subset_label = soup.find("span", string="Subset:")
+            if subset_label and subset_label.next_sibling:
+                line_subset = subset_label.next_sibling.strip()
+                if line_subset == "-": line_subset = ""
+
+            variation_label = soup.find("span", string="Variation:")
+            if variation_label and variation_label.next_sibling:
+                line3 = variation_label.next_sibling.strip()
+                if line3 == "-": line3 = ""
         except Exception as e:
-            print(f"Error parsing card info details: {e}")
+            print(f"Error scraping card details: {e}")
             pass
-
+        
+        # --- Handle grade scenarios (View Score vs. TAG Score) ---
         try:
-            # Re-check the grade selector as it has also changed
-            tag_score_section = soup.find("section", class_="section-tag-score")
-            if tag_score_section:
-                tag_score = tag_score_section.find("h2", class_="display-4").get_text(strip=True)
-                
-                grade_info = tag_score_section.find("p", class_="lead")
-                grade_text = grade_info.get_text(strip=True).replace(' ', ' - ').replace('  ', ' ') if grade_info else ""
-
-                line4 = f"{tag_score} {grade_text}"
-        except Exception:
+            # Scenario 1: Find "View Score"
+            grade_container = soup.find("div", string="View Score")
+            if grade_container:
+                # Find the parent of the grade container
+                grade_parent = grade_container.parent.parent
+                # The grade number and text are in the second direct child div
+                grade_info_div = grade_parent.find_all("div", recursive=False)[1]
+                # Find the number and text within that div
+                grade_number = grade_info_div.find_all("div", recursive=False)[0].get_text(strip=True)
+                grade_text = grade_info_div.find_all("div", recursive=False)[1].get_text(strip=True)
+                line4 = f"{grade_number} {grade_text}"
+            
+            # Scenario 2: If "View Score" is not found, look for "TAG Score"
+            else:
+                tag_score_container = soup.find("div", string="TAG Score")
+                if tag_score_container:
+                    # Get the number preceding "TAG Score"
+                    tag_score_num_div = tag_score_container.find_previous_sibling("div")
+                    tag_score_num = tag_score_num_div.get_text(strip=True) if tag_score_num_div else ""
+                    
+                    # Get the main grade number and text from the next sibling container
+                    grade_info_container = tag_score_container.parent.find_next_sibling("div")
+                    if grade_info_container:
+                        grade_number = grade_info_container.find_all("div", recursive=False)[0].get_text(strip=True)
+                        grade_text = grade_info_container.find_all("div", recursive=False)[1].get_text(strip=True)
+                        
+                        # Format the line with the TAG Score number in parentheses
+                        line4 = f"{grade_number} {grade_text} ({tag_score_num})"
+        except Exception as e:
+            print(f"Error scraping grade info: {e}")
             pass
 
     except Exception as e:
