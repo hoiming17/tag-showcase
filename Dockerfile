@@ -6,27 +6,34 @@ WORKDIR /app
 
 # Install system dependencies for a headless browser
 RUN apt-get update && apt-get install -y \
-    gnupg \
-    wget \
-    libnss3 \
-    libxss1 \
-    libasound2 \
+    ca-certificates \
+    fonts-liberation \
     libappindicator3-1 \
-    libsecret-1-0 \
-    libu2f-udev \
-    libvulkan1 \
-    libxcb-dri3-0 \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libatspi2.0-0 \
+    libcurl4 \
+    libdrm2 \
+    libgbm1 \
+    libgdk-pixbuf2.0-0 \
+    libglib2.0-0 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
     libxcomposite1 \
-    libxcursor1 \
     libxdamage1 \
     libxext6 \
-    libxi6 \
+    libxfixes3 \
     libxrandr2 \
     libxrender1 \
     libxtst6 \
+    libxss1 \
     lsb-release \
+    wget \
     xdg-utils \
-    -qq
+    -qq && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install Chromium (the browser executable)
 RUN wget -qO- https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /etc/apt/keyrings/google-keyring.gpg && \
