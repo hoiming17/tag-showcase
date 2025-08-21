@@ -1,11 +1,16 @@
-# Use an official Python runtime as a parent image
-FROM python:3.9-slim
+# Use a Python runtime with a more complete set of libraries
+# `bullseye` is a newer, more robust base for this kind of work
+FROM python:3.9-slim-bullseye
 
 # Install system dependencies for Chromium, including core libraries
 RUN apt-get update && apt-get install -y \
     chromium \
     libglib2.0-0 \
     libnss3 \
+    libxcomposite1 \
+    libxtst6 \
+    libxrender1 \
+    libfontconfig1 \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
