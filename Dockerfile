@@ -1,13 +1,11 @@
 # Use an official Python runtime as a parent image
 FROM python:3.9-slim
 
-# Install system dependencies for Selenium and a headless browser
-# Added libglib2.0-0, libnss3, and libgconf-2-4
+# Install system dependencies for Chromium, including core libraries
 RUN apt-get update && apt-get install -y \
     chromium \
     libglib2.0-0 \
     libnss3 \
-    libgconf-2-4 \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
