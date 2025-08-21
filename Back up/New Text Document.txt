@@ -1,0 +1,33 @@
+import requests
+from bs4 import BeautifulSoup
+
+def scrape_card_info(html):
+    soup = BeautifulSoup(html, "html.parser")
+
+    def safe_get(selector, description):
+        try:
+            element = soup.select_one(selector)
+            if element:
+                return element.get_text(strip=True)
+            else:
+                print(f"[WARN] Could not find {description}")
+                return "Unknown"
+        except Exception as e:
+            print(f"[ERROR] Failed to get {description}: {e}")
+            return "Unknown"
+
+    # Line 1: Player name
+    player_name = safe_get("span.jss144", "Player name")
+
+    # Line 2: Set name
+    set_name = safe_get("div.jss145", "Set name")
+
+    # Line 3: Subset (right after set name)
+    subset = safe_get("div.jss146", "Subset")
+
+    # Line 4: Grade + Label (like "10 GEM MINT")
+    grade_number = safe_get("div.jss156", "Grade number")
+    grade_label = safe_get("div.jss157", "Grade label")
+    grade_line = f"{grade_number} {grade_label}" if grade_number != "Unknown" else "Unknown"
+
+    return [player_name, f"{set_name} {subset}", grade_line]

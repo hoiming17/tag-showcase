@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Card Collection</title>
+    <style>
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px;
+            display: inline-block;
+            text-align: center;
+            width: 250px;
+        }
+        img {
+            max-width: 100%;
+            border-radius: 8px;
+        }
+        button {
+            background: red;
+            color: white;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>My Collection</h1>
+
+    <form action="/add" method="post">
+        <input type="text" name="cert" placeholder="Enter Cert Number" required>
+        <button type="submit">Add Card</button>
+    </form>
+
+    <div>
+        {% for card in collection %}
+        <div class="card">
+            <h2>{{ card.name }}</h2>
+            <p><strong>Set:</strong> {{ card.set }}</p>
+            <p><strong>Number:</strong> {{ card.number }}</p>
+            <p><strong>Rarity:</strong> {{ card.rarity }}</p>
+            <img src="{{ card.img }}" alt="{{ card.name }}">
+            <p><a href="{{ card.webpage }}" target="_blank">View on TAG</a></p>
+            <a href="/remove/{{ card.cert }}"><button>Remove</button></a>
+        </div>
+        {% endfor %}
+    </div>
+</body>
+</html>

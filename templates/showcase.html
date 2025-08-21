@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TAG Collection Showcase</title>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Open Sans', sans-serif;
+            background-color: black;
+            color: white;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background-color: #222;
+            border-bottom: 2px solid #5e81ac;
+        }
+        header h1 {
+            margin: 0;
+            color: #88c0d0;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            font-size: 1.2em;
+        }
+        .user-info a {
+            color: white;
+            margin-left: 20px;
+            text-decoration: none;
+            padding: 8px 12px;
+            background-color: #5e81ac;
+            border-radius: 4px;
+        }
+        .main-content {
+            display: flex;
+            flex-grow: 1;
+        }
+        .menu-list {
+            width: 200px;
+            background-color: #1c1c1c;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #333;
+        }
+        .menu-list h3 {
+            margin-top: 0;
+            color: #88c0d0;
+        }
+        .menu-list ul {
+            list-style: none;
+            padding: 0;
+        }
+        .menu-list li a {
+            display: block;
+            color: white;
+            text-decoration: none;
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 5px;
+        }
+        .menu-list li a:hover {
+            background-color: #333;
+        }
+        .showcase-area {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .top-bar {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .showcase-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .add-form {
+            display: flex;
+            gap: 10px;
+            margin-right: auto;
+            margin-left: 20px;
+        }
+        .add-form input {
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            background-color: #3c3c3c;
+            color: #fff;
+        }
+        .add-form button {
+            padding: 10px 20px;
+            background-color: #5e81ac;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+        }
+        .sort-form {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .sort-form select {
+            padding: 8px;
+            border-radius: 4px;
+            background-color: #3c3c3c;
+            color: white;
+            border: 1px solid #555;
+        }
+        .info-box {
+            background-color: #1c1c1c;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .info-box span {
+            font-size: 1em;
+        }
+        .hashtag-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .hashtag-link, .all-cards-link {
+            display: inline-block;
+            padding: 8px 12px;
+            background-color: #3c3c3c;
+            color: white;
+            text-decoration: none;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+        .hashtag-link.active, .all-cards-link.active {
+            background-color: #5e81ac;
+            font-weight: bold;
+        }
+        .cards-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .card {
+            border: 1px solid #444;
+            padding: 10px;
+            background-color: #111;
+            display: inline-block;
+            vertical-align: top;
+            width: 225px;
+            min-height: 450px;
+            position: relative;
+        }
+        img {
+            display: block;
+            margin: 0 auto 10px auto;
+            max-width: 100%;
+        }
+        .card p {
+            margin: 0;
+            line-height: 1.4;
+        }
+        .card strong {
+            color: #88c0d0;
+        }
+        .card a {
+            color: #88c0d0;
+        }
+        .card .remove-card-button {
+            margin-top: 10px;
+            padding: 5px 10px;
+            background-color: #bf616a;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+        }
+        .card .remove-card-button:hover {
+            background-color: #a45058;
+        }
+        .card .hashtag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 5px;
+            min-height: 20px;
+        }
+        .card .hashtag-list span {
+            background-color: #555;
+            color: #eee;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.7em;
+            display: flex;
+            align-items: center;
+        }
+        .card .hashtag-list .remove-tag-button {
+            margin-left: 5px;
+            cursor: pointer;
+            color: #f0f0f0;
+            font-weight: bold;
+        }
+        .card .hashtag-list .remove-tag-button:hover {
+            color: white;
+        }
+        .add-hashtag-form {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+        .add-hashtag-form input {
+            width: 100px;
+            padding: 4px;
+            border-radius: 3px;
+            border: 1px solid #555;
+            background-color: #3c3c3c;
+            color: #fff;
+            font-size: 0.8em;
+        }
+        .add-hashtag-form button {
+            padding: 4px 8px;
+            background-color: #5e81ac;
+            font-size: 0.8em;
+            border: none;
+            border-radius: 3px;
+            color: white;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>TAG Collection Showcase</h1>
+        <div class="user-info">
+            {% if logged_in_user %}
+                Welcome, {{ logged_in_user }}!
+                <a href="{{ url_for('logout') }}">Log Out</a>
+            {% else %}
+                <a href="{{ url_for('index') }}">Log In / Register</a>
+            {% endif %}
+        </div>
+    </header>
+    
+    <div class="main-content">
+        <div class="menu-list">
+            {% if is_admin %}
+            <h3>Admin Panel</h3>
+            <ul>
+                <li><a href="{{ url_for('admin_dashboard') }}">User Management</a></li>
+            </ul>
+            {% endif %}
+            <h3>Users</h3>
+            <ul>
+                {% for user in all_users %}
+                <li><a href="{{ url_for('showcase', username=user) }}">{{ user }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        <div class="showcase-area">
+            <div class="top-bar">
+                <div class="showcase-header">
+                    <h2>{{ displayed_user }}'s Showcase</h2>
+                    <div style="display: flex; align-items: center; gap: 20px;">
+                        {% if is_owner %}
+                        <form method="post" action="{{ url_for('add') }}" class="add-form">
+                            <input type="text" name="cert_number" placeholder="Enter TAG Cert # to add" required>
+                            <input type="hidden" name="target_username" value="{{ displayed_user }}">
+                            <button type="submit">Add Card</button>
+                        </form>
+                        {% endif %}
+                        
+                        <div class="sort-form">
+                            Sort by:
+                            <select onchange="window.location.href=this.value">
+                                <option value="{{ url_for('showcase', username=displayed_user, hashtag=active_hashtag) }}" {% if current_sort == 'default' %}selected{% endif %}>Default</option>
+                                <option value="{{ url_for('showcase', username=displayed_user, sort_by='grade', hashtag=active_hashtag) }}" {% if current_sort == 'grade' %}selected{% endif %}>Grade (High to Low)</option>
+                                <option value="{{ url_for('showcase', username=displayed_user, sort_by='set_name', hashtag=active_hashtag) }}" {% if current_sort == 'set_name' %}selected{% endif %}>Set Name (A-Z)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="info-box">
+                    <span>Total Cards: {{ total_cards }}</span>
+                    {% for grade, count in grade_counts.items() %}
+                    <span>{{ grade }} Cards: {{ count }}</span>
+                    {% endfor %}
+                </div>
+                
+                <div class="hashtag-container">
+                    <a href="{{ url_for('showcase', username=displayed_user) }}" class="all-cards-link {% if not active_hashtag %}active{% endif %}">All Cards</a>
+                    {% for tag in all_hashtags %}
+                    <a href="{{ url_for('showcase', username=displayed_user, hashtag=tag) }}" class="hashtag-link {% if active_hashtag == tag %}active{% endif %}">#{{ tag }}</a>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="cards-container">
+            {% for card in collection %}
+                <div class="card">
+                    <img src="{{ card.image }}" alt="Card image">
+                    {% if card.line1 %}
+                    <p><strong>{{ card.line1 }}</strong></p>
+                    {% endif %}
+                    {% if card.line2 %}
+                    <p>{{ card.line2 }}</p>
+                    {% endif %}
+                    {% if card.line_subset %}
+                    <p>{{ card.line_subset }}</p>
+                    {% endif %}
+                    {% if card.line3 %}
+                    <p>{{ card.line3 }}</p>
+                    {% endif %}
+                    {% if card.line4 %}
+                    <p>{{ card.line4 }}</p>
+                    {% endif %}
+                    <p><a href="{{ card.link }}" target="_blank">{{ card.cert_number }}</a></p>
+
+                    <div class="hashtag-list">
+                        {% for tag in card.get('hashtags', []) %}
+                        <span>#{{ tag }}
+                            {% if is_owner %}
+                            <span class="remove-tag-button" onclick="removeHashtag('{{ card.cert_number }}', '{{ tag }}', '{{ displayed_user }}')">x</span>
+                            {% endif %}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    
+                    {% if is_owner %}
+                    <form onsubmit="addHashtag(event, '{{ card.cert_number }}', '{{ displayed_user }}')" class="add-hashtag-form">
+                        <input type="text" name="hashtag" placeholder="Add hashtag" required>
+                        <input type="hidden" name="target_username" value="{{ displayed_user }}">
+                        <input type="hidden" name="cert_number" value="{{ card.cert_number }}">
+                        <button type="submit">Add</button>
+                    </form>
+                    <form method="post" action="{{ url_for('remove') }}">
+                        <input type="hidden" name="cert_number" value="{{ card.cert_number }}">
+                        <input type="hidden" name="target_username" value="{{ displayed_user }}">
+                        <button type="submit" class="remove-card-button">Remove</button>
+                    </form>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function addHashtag(event, certNumber, targetUsername) {
+            event.preventDefault();
+            const form = event.target;
+            const hashtag = form.querySelector('input[name="hashtag"]').value;
+
+            fetch('/add_hashtag', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    cert_number: certNumber,
+                    hashtag: hashtag,
+                    target_username: targetUsername
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function removeHashtag(certNumber, hashtag, targetUsername) {
+            fetch('/remove_hashtag', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    cert_number: certNumber,
+                    hashtag: hashtag,
+                    target_username: targetUsername
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    </script>
+</body>
+</html>

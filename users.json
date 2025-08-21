@@ -1,0 +1,64 @@
+{
+    "admin": {
+        "password": "scrypt:32768:8:1$4fmbi6G6E4vL1goG$da11df82ec519a02777a84e5681f7b62e406f3db4c910ef35a3e02293a618f30b44e0e95e3fb7b03494aba13272b80ca1154eee5f32d6ba4dc235f36fed68dcd",
+        "collection": [],
+        "is_admin": true
+    },
+    "test1": {
+        "password": "scrypt:32768:8:1$dvKCvD6G6UFVq2ZO$3b5e4e4250722644fa96b5692c4d3ddd4e6771e101405dccf0d77da3a6068450be49e3ddb0c71d3e94cf10517ce7aa2e2ad20c7d9d890d77a62ac846e2cbe83c",
+        "collection": [
+            {
+                "cert_number": "P1315906",
+                "line1": "WOLVERINE",
+                "line2": "1990 IMPEL MARVEL UNIVERSE #MH4",
+                "line_subset": "HOLOGRAM",
+                "line3": "",
+                "line4": "6.5 EX MT+",
+                "image": "https://devblock-tag.s3.us-west-2.amazonaws.com/slab-images/P1315906_Slabbed_FRONT.jpg",
+                "link": "https://my.taggrading.com/card/P1315906",
+                "hashtags": [
+                    "marvel",
+                    "wolverine"
+                ]
+            },
+            {
+                "cert_number": "W1200368",
+                "line1": "BART SNYDER",
+                "line2": "1991 HORSE STAR JOCKEY STAR JOCKEYS #183",
+                "line_subset": "",
+                "line3": "",
+                "line4": "1 POOR (100)",
+                "image": "https://devblock-tag.s3.us-west-2.amazonaws.com/slab-images/W1200368_Slabbed_FRONT.jpg",
+                "link": "https://my.taggrading.com/card/W1200368"
+            },
+            {
+                "cert_number": "M2416151",
+                "line1": "\u30df\u30e5\u30a6 MEW EX",
+                "line2": "2023 POK\u00c9MON SCARLET & VIOLET JAPANESE #208/165",
+                "line_subset": "151",
+                "line3": "ULTRA RARE",
+                "line4": "10 GEM MINT",
+                "image": "https://devblock-tag.s3.us-west-2.amazonaws.com/slab-images/M2416151_Slabbed_FRONT.jpg",
+                "link": "https://my.taggrading.com/card/M2416151",
+                "hashtags": [
+                    "pokemon"
+                ]
+            }
+        ]
+    },
+    "test2": {
+        "password": "scrypt:32768:8:1$W2FYAji4m8RHZt50$f04c0566c7b1eb2afdbd44b273bf1af5ade2293277316e68a68f7e8865e7784e8a22493b85e4e6d90a53c1ac9d12d51a931ecdc52c52b7836d5012ca738e90f3",
+        "collection": [
+            {
+                "cert_number": "Y7187824",
+                "line1": "SHOHEI OHTANI",
+                "line2": "2018 TOPPS CHROME #150",
+                "line_subset": "",
+                "line3": "REFRACTOR",
+                "line4": "9 MINT",
+                "image": "https://devblock-tag.s3.us-west-2.amazonaws.com/slab-images/Y7187824_Slabbed_FRONT.jpg",
+                "link": "https://my.taggrading.com/card/Y7187824"
+            }
+        ]
+    }
+}
