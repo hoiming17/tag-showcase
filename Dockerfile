@@ -4,13 +4,19 @@ FROM zenika/alpine-chrome:latest
 # Set the working directory for your application
 WORKDIR /app
 
+# Switch to the root user to install packages
+USER root
+
 # Install Python and pip
 RUN apk update && apk add --no-cache python3 py3-pip
+
+# Switch back to the default user for security
+USER chrome
 
 # Copy your application files
 COPY . .
 
-# Install Python dependencies
+# Install Python dependencies (as the non-root user)
 RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Set the environment variable for Selenium
