@@ -2,7 +2,6 @@
 
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
-import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -10,6 +9,11 @@ from selenium.webdriver.chrome.service import Service
 import os
 import time
 import json
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(levelname)s: %(message)s')
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = 'a_very_secret_key'
@@ -22,7 +26,7 @@ def load_users():
             with open('users.json', 'r') as f:
                 return json.load(f)
         except json.JSONDecodeError:
-            print("Error: users.json file is corrupted. Returning an empty user list.")
+            logger.error("Error: users.json file is corrupted. Returning an empty user list.")
             return {}
     return {}
 
@@ -34,10 +38,10 @@ def save_users(users_data):
 # --- CORRECTED scrape_card_info function ---
 def scrape_card_info(cert_number):
     url = f"https://my.taggrading.com/card/{cert_number}"
-    print(f"Starting scrape for {cert_number} from URL: {url}")
+    logger.info(f"Starting scrape for {cert_number} from URL: {url}")
 
     chrome_executable_path = os.environ.get('CHROMIUM_EXECUTABLE_PATH')
-    print(f"Using Chromium path: {chrome_executable_path}")
+    logger.info(f"Using Chromium path: {chrome_executable_path}")
     
     options = webdriver.ChromeOptions()
     options.add_argument("--headless")
@@ -51,7 +55,7 @@ def scrape_card_info(cert_number):
     
     # Check if the path exists before creating the service
     if not chrome_executable_path or not os.path.exists(chrome_executable_path):
-        print("Chromium executable path is not set or does not exist!")
+        logger.error("Chromium executable path is not set or does not exist!")
         return {
             "cert_number": cert_number, "line1": "", "line2": "", "line_subset": "",
             "line3": "", "line4": "", "hashtags": [],
@@ -64,12 +68,16 @@ def scrape_card_info(cert_number):
     driver = None
     try:
         driver = webdriver.Chrome(service=service, options=options)
+        
+        # Set a reasonable page load timeout to prevent indefinite hangs
+        driver.set_page_load_timeout(30)
+        
         driver.get(url)
-        print("Page loaded. Waiting for content to render.")
+        logger.info("Page loaded successfully. Waiting for dynamic content.")
         time.sleep(3)
         page_source = driver.page_source
         soup = BeautifulSoup(page_source, "html.parser")
-        print("Page source obtained and parsed.")
+        logger.info("Page source obtained and parsed.")
 
         line1, line2, line_subset, line3, line4 = "", "", "", "", ""
 
@@ -77,35 +85,43 @@ def scrape_card_info(cert_number):
             player_label = soup.find("span", string="Player name:")
             if player_label:
                 line1 = player_label.next_sibling.get_text(strip=True)
-                print(f"Scraped Player Name: {line1}")
+                logger.info(f"Scraped Player Name: {line1}")
+            else:
+                logger.warning("Player name label not found.")
         except Exception as e:
-            print(f"Error scraping Player Name: {e}")
+            logger.error(f"Error scraping Player Name: {e}")
 
         try:
             set_name_label = soup.find("span", string="Set name:")
             if set_name_label:
                 line2 = set_name_label.next_sibling.get_text(strip=True)
-                print(f"Scraped Set Name: {line2}")
+                logger.info(f"Scraped Set Name: {line2}")
+            else:
+                logger.warning("Set name label not found.")
         except Exception as e:
-            print(f"Error scraping Set Name: {e}")
+            logger.error(f"Error scraping Set Name: {e}")
 
         try:
             subset_label = soup.find("span", string="Subset:")
             if subset_label:
                 line_subset = subset_label.next_sibling.get_text(strip=True)
                 if line_subset == "-": line_subset = ""
-                print(f"Scraped Subset: {line_subset}")
+                logger.info(f"Scraped Subset: {line_subset}")
+            else:
+                logger.warning("Subset label not found.")
         except Exception as e:
-            print(f"Error scraping Subset: {e}")
+            logger.error(f"Error scraping Subset: {e}")
             
         try:
             variation_label = soup.find("span", string="Variation:")
             if variation_label:
                 line3 = variation_label.next_sibling.get_text(strip=True)
                 if line3 == "-": line3 = ""
-                print(f"Scraped Variation: {line3}")
+                logger.info(f"Scraped Variation: {line3}")
+            else:
+                logger.warning("Variation label not found.")
         except Exception as e:
-            print(f"Error scraping Variation: {e}")
+            logger.error(f"Error scraping Variation: {e}")
 
         try:
             grade_anchor = soup.find("div", string="View Score")
@@ -118,7 +134,9 @@ def scrape_card_info(cert_number):
                         grade_number = grade_number_div.get_text(strip=True)
                         grade_text = grade_text_div.get_text(strip=True)
                         line4 = f"{grade_number} {grade_text}"
-                        print(f"Scraped Grade (View Score): {line4}")
+                        logger.info(f"Scraped Grade (View Score): {line4}")
+                    else:
+                        logger.warning("View Score child divs not found.")
             else:
                 tag_score_anchor = soup.find("div", string="TAG Score")
                 if tag_score_anchor:
@@ -131,13 +149,17 @@ def scrape_card_info(cert_number):
                             grade_number = grade_divs[0].get_text(strip=True)
                             grade_text = grade_divs[1].get_text(strip=True)
                             line4 = f"{grade_number} {grade_text} ({tag_score_num})"
-                            print(f"Scraped Grade (TAG Score): {line4}")
+                            logger.info(f"Scraped Grade (TAG Score): {line4}")
+                        else:
+                            logger.warning("TAG Score child divs not found.")
+                else:
+                    logger.warning("Neither 'View Score' nor 'TAG Score' anchor found.")
         except Exception as e:
             line4 = ""
-            print(f"Error scraping grade info: {e}")
+            logger.error(f"Error scraping grade info: {e}")
 
     except Exception as e:
-        print(f"An error occurred during the scrape process: {e}")
+        logger.error(f"An error occurred during the scrape process: {e}")
         return {
             "cert_number": cert_number, "line1": "", "line2": "", "line_subset": "", 
             "line3": "", "line4": "", "hashtags": [],
@@ -147,10 +169,10 @@ def scrape_card_info(cert_number):
     finally:
         if driver:
             driver.quit()
-            print("Driver closed.")
+            logger.info("Driver closed.")
 
     image_url = f"https://devblock-tag.s3.us-west-2.amazonaws.com/slab-images/{cert_number}_Slabbed_FRONT.jpg"
-    print(f"Scrape completed. Result: Player: {line1}, Set: {line2}, Grade: {line4}")
+    logger.info(f"Scrape completed. Result: Player: {line1}, Set: {line2}, Grade: {line4}")
     return {
         "cert_number": cert_number, "line1": line1, "line2": line2, "line_subset": line_subset,
         "line3": line3, "line4": line4, "hashtags": [], "image": image_url, "link": url
