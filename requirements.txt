@@ -1,9 +1,7 @@
 Flask
-werkzeug
+gunicorn
 requests
 beautifulsoup4
-selenium==4.14.0
-webdriver-manager
-gunicorn
-Flask-SQLAlchemy
-psycopg2-binary
+pyppeteer
+websockets
+nest-asyncio

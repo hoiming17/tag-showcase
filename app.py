@@ -3,13 +3,18 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.common.exceptions import WebDriverException
 import os
 import time
 import json
 import logging
+import asyncio
+import nest_asyncio
+from pyppeteer import launch
+from pyppeteer.errors import PyppeteerError, TimeoutError
+
+# This is necessary for running Pyppeteer's asyncio event loop within Gunicorn's
+# event loop.
+nest_asyncio.apply()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(levelname)s: %(message)s')
@@ -18,12 +23,11 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = 'a_very_secret_key'
 
-# --- Browserless Configuration ---
-# IMPORTANT: Replace 'YOUR_API_KEY' with your actual Browserless API key
-# You can also store this in an environment variable on Render for security:
-# BROWSERLESS_API_KEY = os.environ.get('BROWSERLESS_API_KEY', 'YOUR_API_KEY')
-# BROWSERLESS_URL = f"https://production-sfo.browserless.io/webdriver?token={BROWSERLESS_API_KEY}"
-BROWSERLESS_URL = "https://production-sfo.browserless.io/webdriver?token=2SuXmL5VzNoK49g3ef51708a0844cbbb2e883538fcb2e02d8"
+# --- Browserless Configuration for Pyppeteer ---
+# IMPORTANT: Pyppeteer requires the WebSockets (wss://) endpoint.
+# Replace 'YOUR_API_KEY' with your actual Browserless API key
+# BROWSERLESS_URL = f"wss://production-sfo.browserless.io?token={os.environ.get('BROWSERLESS_API_KEY', 'YOUR_API_KEY')}"
+BROWSERLESS_URL = "wss://production-sfo.browserless.io?token=2SuXmL5VzNoK49g3ef51708a0844cbbb2e883538fcb2e02d8"
 
 
 # --- Helper Functions ---
@@ -43,43 +47,35 @@ def save_users(users_data):
     with open('users.json', 'w') as f:
         json.dump(users_data, f, indent=4)
 
-# --- UPDATED scrape_card_info function to use Browserless ---
-def scrape_card_info(cert_number):
-    url = f"https://my.taggrading.com/card/{cert_number}"
-    logger.info(f"Starting scrape for {cert_number} from URL: {url} using Browserless.")
-
-    options = Options()
-    options.headless = True
-    # The 'set_capability' method is the most robust way to pass
-    # Browserless-specific options to the remote server.
-    options.set_capability("browserless:options", {
-        "args": [
-            "--no-sandbox",
-            "--disable-dev-shm-usage",
-            "--window-size=1920,1080",
-        ]
-    })
-    
-    driver = None
+# --- UPDATED scrape_card_info function to use Pyppeteer ---
+async def scrape_card_info_async(cert_number):
+    """Asynchronously scrapes card info using Pyppeteer."""
+    browser = None
     try:
+        url = f"https://my.taggrading.com/card/{cert_number}"
+        logger.info(f"Starting async scrape for {cert_number} from URL: {url} using Pyppeteer.")
+        
         # Connect to the remote Browserless service
-        driver = webdriver.Remote(
-            command_executor=BROWSERLESS_URL,
-            options=options
+        browser = await launch(
+            {
+                'browserWSEndpoint': BROWSERLESS_URL
+            },
+            args=['--no-sandbox', '--disable-dev-shm-usage']
         )
         
-        # Set a reasonable page load timeout
-        driver.set_page_load_timeout(30)
+        page = await browser.newPage()
+        await page.setViewport({'width': 1920, 'height': 1080})
+        await page.goto(url, {'waitUntil': 'networkidle2'})
+        logger.info("Page loaded successfully via Pyppeteer. Waiting for dynamic content.")
         
-        driver.get(url)
-        logger.info("Page loaded successfully via Browserless. Waiting for dynamic content.")
-        time.sleep(3) # Give time for JavaScript to render
-        page_source = driver.page_source
-        soup = BeautifulSoup(page_source, "html.parser")
+        # Get the page source after dynamic content has loaded
+        content = await page.content()
+        soup = BeautifulSoup(content, "html.parser")
         logger.info("Page source obtained and parsed.")
 
         line1, line2, line_subset, line3, line4 = "", "", "", "", ""
-
+        
+        # All your scraping logic remains the same below
         try:
             player_label = soup.find("span", string="Player name:")
             if player_label:
@@ -156,17 +152,16 @@ def scrape_card_info(cert_number):
         except Exception as e:
             line4 = ""
             logger.error(f"Error scraping grade info: {e}")
-
-    except WebDriverException as e:
-        logger.error(f"WebDriverException occurred during Browserless scrape: {e}")
+            
         return {
-            "cert_number": cert_number, "line1": "", "line2": "", "line_subset": "", 
-            "line3": "", "line4": "", "hashtags": [],
+            "cert_number": cert_number, "line1": line1, "line2": line2, "line_subset": line_subset,
+            "line3": line3, "line4": line4, "hashtags": [],
             "image": f"https://devblock-tag.s3.us-west-2.amazonaws.com/slab-images/{cert_number}_Slabbed_FRONT.jpg",
             "link": url
         }
-    except Exception as e:
-        logger.error(f"An unexpected error occurred during the Browserless scrape process: {e}")
+            
+    except (PyppeteerError, TimeoutError, Exception) as e:
+        logger.error(f"An error occurred during Pyppeteer scrape: {e}")
         return {
             "cert_number": cert_number, "line1": "", "line2": "", "line_subset": "", 
             "line3": "", "line4": "", "hashtags": [],
@@ -174,16 +169,9 @@ def scrape_card_info(cert_number):
             "link": url
         }
     finally:
-        if driver:
-            driver.quit()
-            logger.info("Browserless driver closed.")
-
-    image_url = f"https://devblock-tag.s3.us-west-2.amazonaws.com/slab-images/{cert_number}_Slabbed_FRONT.jpg"
-    logger.info(f"Scrape completed. Result: Player: {line1}, Set: {line2}, Grade: {line4}")
-    return {
-        "cert_number": cert_number, "line1": line1, "line2": line2, "line_subset": line_subset,
-        "line3": line3, "line4": line4, "hashtags": [], "image": image_url, "link": url
-    }
+        if browser:
+            await browser.close()
+            logger.info("Pyppeteer browser closed.")
 
 def get_grade_for_sort(card):
     line4 = card.get('line4', '')
@@ -424,7 +412,8 @@ def add():
     if any(card['cert_number'] == cert_number for card in user_data['collection']):
         return "Card already in collection."
         
-    card_info = scrape_card_info(cert_number)
+    # Run the async scraper
+    card_info = asyncio.run(scrape_card_info_async(cert_number))
     user_data['collection'].append(card_info)
     save_users(users)
     
