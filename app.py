@@ -13,7 +13,7 @@ app = Flask(__name__)
 
 def scrape_card_data(cert_number):
     """
-    Scrapes a single TAG Grading card page for key information.
+    Scrapes a single TAG Grading card page for key information using user-provided logic.
     """
     url = f"https://my.taggrading.com/card/{cert_number}"
     logging.info(f"Attempting to scrape URL: {url}")
@@ -21,7 +21,7 @@ def scrape_card_data(cert_number):
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
-        logging.info(f"Successfully fetched page for {cert_number}")
+        logging.info(f"Successfully fetched page for W1200368")
     except requests.exceptions.RequestException as e:
         logging.error(f"Error fetching page for {cert_number}: {e}")
         return {"error": "Failed to fetch card data. Please check the cert number or URL."}
@@ -29,42 +29,60 @@ def scrape_card_data(cert_number):
     soup = BeautifulSoup(response.text, 'html.parser')
     data = {}
     
-    # --- Find Player Name, Set Name, Subset, and Variation ---
-    # Now searching for the exact strings including capitalization and colon
+    # --- Scrape using parent and replace for robust text handling ---
     try:
-        player_name_anchor = soup.find('span', string='Player name:')
-        data['player_name'] = player_name_anchor.find_next_sibling('span').get_text(strip=True)
+        player_label = soup.find("span", string="Player name:")
+        if player_label:
+            data['player_name'] = player_label.find_next_sibling('span').get_text(strip=True)
+        else:
+            data['player_name'] = 'N/A'
+            logging.warning("Player name not found.")
     except AttributeError:
         data['player_name'] = 'N/A'
-        logging.warning("Player name not found.")
+        logging.warning("Player name data not found.")
 
     try:
-        set_name_anchor = soup.find('span', string='Set name:')
-        data['set_name'] = set_name_anchor.next_sibling.strip()
+        set_name_label = soup.find("span", string="Set name:")
+        if set_name_label:
+            set_name_full_text = set_name_label.parent.get_text(strip=True)
+            data['set_name'] = set_name_full_text.replace("Set name:", "").strip()
+        else:
+            data['set_name'] = 'N/A'
+            logging.warning("Set name not found.")
     except AttributeError:
         data['set_name'] = 'N/A'
-        logging.warning("Set name not found.")
+        logging.warning("Set name data not found.")
         
     try:
-        subset_anchor = soup.find('span', string='Subset:')
-        subset_val = subset_anchor.next_sibling.strip()
-        data['subset'] = subset_val if subset_val and subset_val != '-' else 'N/A'
+        subset_label = soup.find("span", string="Subset:")
+        if subset_label:
+            subset_full_text = subset_label.parent.get_text(strip=True)
+            subset_val = subset_full_text.replace("Subset:", "").strip()
+            data['subset'] = subset_val if subset_val and subset_val != '-' else 'N/A'
+        else:
+            data['subset'] = 'N/A'
+            logging.warning("Subset not found.")
     except AttributeError:
         data['subset'] = 'N/A'
-        logging.warning("Subset not found.")
-        
+        logging.warning("Subset data not found.")
+
     try:
-        variation_anchor = soup.find('span', string='Variation:')
-        variation_val = variation_anchor.next_sibling.strip()
-        data['variation'] = variation_val if variation_val and variation_val != '-' else 'N/A'
+        variation_label = soup.find("span", string="Variation:")
+        if variation_label:
+            variation_full_text = variation_label.parent.get_text(strip=True)
+            variation_val = variation_full_text.replace("Variation:", "").strip()
+            data['variation'] = variation_val if variation_val and variation_val != '-' else 'N/A'
+        else:
+            data['variation'] = 'N/A'
+            logging.warning("Variation not found.")
     except AttributeError:
         data['variation'] = 'N/A'
-        logging.warning("Variation not found.")
+        logging.warning("Variation data not found.")
 
     # --- Find TAG Score, Grade, and Grade Name ---
-    # This section was not the source of the previous error, but we'll include it for completeness
+    # Re-using a previous, reliable method
     try:
-        tag_score_div = soup.find('div', string=re.compile(r'TAG Score'))
+        tag_score_div = soup.find('div', string=re.compile(r'TAG Score', re.I))
         if tag_score_div:
             parent_div = tag_score_div.find_parent('div')
             score_div = parent_div.find_previous_sibling('div').find('div')
@@ -73,7 +91,7 @@ def scrape_card_data(cert_number):
             grade_container = parent_div.find_next_sibling('div')
             data['grade'] = grade_container.find('div').get_text(strip=True)
             data['grade_name'] = grade_container.find_all('div')[-1].get_text(strip=True)
-    except AttributeError:
+    except (AttributeError, IndexError):
         logging.warning("TAG Score or Grade data not found.")
         data['tag_score'] = 'N/A'
         data['grade'] = 'N/A'
