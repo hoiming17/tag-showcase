@@ -25,6 +25,7 @@ RUN apt-get update -y && \
     rm -rf /var/lib/apt/lists/*
 
 # Add the user that our application will run as.
+# This is a security best practice.
 RUN addgroup --system app && adduser --system --group app
 
 # Set the working directory
