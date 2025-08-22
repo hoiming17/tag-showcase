@@ -4,8 +4,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, j
 from werkzeug.security import generate_password_hash, check_password_hash
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options # Import Options for Chrome
 from selenium.common.exceptions import WebDriverException
 import os
 import time
@@ -19,8 +18,17 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = 'a_very_secret_key'
 
+# --- Browserless Configuration ---
+# IMPORTANT: Replace 'YOUR_API_KEY' with your actual Browserless API key
+# You can also store this in an environment variable on Render for security:
+# BROWSERLESS_API_KEY = os.environ.get('BROWSERLESS_API_KEY', 'YOUR_API_KEY')
+# BROWSERLESS_URL = f"https://chrome.browserless.io/webdriver?token={BROWSERLESS_API_KEY}"
+BROWSERLESS_URL = "https://chrome.browserless.io/webdriver?token=2SuXmL5VzNoK49g3ef51708a0844cbbb2e883538fcb2e02d8"
+
+
 # --- Helper Functions ---
 def load_users():
+    """Loads user data from the JSON file, handling potential errors."""
     if os.path.exists('users.json') and os.path.getsize('users.json') > 0:
         try:
             with open('users.json', 'r') as f:
@@ -31,49 +39,37 @@ def load_users():
     return {}
 
 def save_users(users_data):
+    """Saves user data to the JSON file."""
     with open('users.json', 'w') as f:
         json.dump(users_data, f, indent=4)
 
+# --- UPDATED scrape_card_info function to use Browserless ---
 def scrape_card_info(cert_number):
     url = f"https://my.taggrading.com/card/{cert_number}"
-    logger.info(f"Starting scrape for {cert_number} from URL: {url}")
+    logger.info(f"Starting scrape for {cert_number} from URL: {url} using Browserless.")
 
-    chrome_executable_path = os.environ.get('CHROMIUM_EXECUTABLE_PATH')
-    logger.info(f"Using Chromium path: {chrome_executable_path}")
-    
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless")
+    options = Options()
+    # These are crucial for running headless Chrome remotely
     options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--log-level=3")
     options.add_argument("--disable-gpu")
-    options.add_argument("--window-size=1920,1080")
-    options.add_argument("--disable-extensions")
-    options.add_argument("--disable-software-rasterizer")
     options.add_argument("--disable-dev-shm-usage")
-    
-    # Check if the path exists
-    if not chrome_executable_path or not os.path.exists(chrome_executable_path):
-        logger.error("Chromium executable path is not set or does not exist!")
-        return {
-            "cert_number": cert_number, "line1": "", "line2": "", "line_subset": "",
-            "line3": "", "line4": "", "hashtags": [],
-            "image": f"https://devblock-tag.s3.us-west-2.amazonaws.com/slab-images/{cert_number}_Slabbed_FRONT.jpg",
-            "link": url
-        }
-    
-    service = Service(executable_path=chrome_executable_path)
+    options.add_argument("--window-size=1920,1080")
+    options.add_argument("--headless=new") # Explicitly use new headless mode
     
     driver = None
     try:
-        driver = webdriver.Chrome(service=service, options=options)
+        # Connect to the remote Browserless service
+        driver = webdriver.Remote(
+            command_executor=BROWSERLESS_URL,
+            options=options
+        )
         
         # Set a reasonable page load timeout
         driver.set_page_load_timeout(30)
         
         driver.get(url)
-        logger.info("Page loaded successfully. Waiting for dynamic content.")
-        time.sleep(3)
+        logger.info("Page loaded successfully via Browserless. Waiting for dynamic content.")
+        time.sleep(3) # Give time for JavaScript to render
         page_source = driver.page_source
         soup = BeautifulSoup(page_source, "html.parser")
         logger.info("Page source obtained and parsed.")
@@ -158,7 +154,7 @@ def scrape_card_info(cert_number):
             logger.error(f"Error scraping grade info: {e}")
 
     except WebDriverException as e:
-        logger.error(f"WebDriverException occurred: {e}")
+        logger.error(f"WebDriverException occurred during Browserless scrape: {e}")
         return {
             "cert_number": cert_number, "line1": "", "line2": "", "line_subset": "", 
             "line3": "", "line4": "", "hashtags": [],
@@ -166,7 +162,7 @@ def scrape_card_info(cert_number):
             "link": url
         }
     except Exception as e:
-        logger.error(f"An unexpected error occurred during the scrape process: {e}")
+        logger.error(f"An unexpected error occurred during the Browserless scrape process: {e}")
         return {
             "cert_number": cert_number, "line1": "", "line2": "", "line_subset": "", 
             "line3": "", "line4": "", "hashtags": [],
@@ -176,7 +172,7 @@ def scrape_card_info(cert_number):
     finally:
         if driver:
             driver.quit()
-            logger.info("Driver closed.")
+            logger.info("Browserless driver closed.")
 
     image_url = f"https://devblock-tag.s3.us-west-2.amazonaws.com/slab-images/{cert_number}_Slabbed_FRONT.jpg"
     logger.info(f"Scrape completed. Result: Player: {line1}, Set: {line2}, Grade: {line4}")
@@ -203,24 +199,28 @@ def index():
 
 @app.route("/register", methods=["POST"])
 def register():
+    username = request.form["username"]
+    password = request.form["password"]
     users = load_users()
-    if request.form["username"] in users:
+    if username in users:
         return "Username already exists. Please choose a different one."
     
-    hashed_password = generate_password_hash(request.form["password"])
-    users[request.form["username"]] = {"password": hashed_password, "collection": [], "is_admin": False}
+    hashed_password = generate_password_hash(password)
+    users[username] = {"password": hashed_password, "collection": [], "is_admin": False}
     save_users(users)
     return redirect(url_for('index'))
 
 @app.route("/login", methods=["POST"])
 def login():
+    username = request.form["username"]
+    password = request.form["password"]
     users = load_users()
-    user_data = users.get(request.form["username"])
-    if user_data and check_password_hash(user_data["password"], request.form["password"]):
-        session['username'] = request.form["username"]
+    user_data = users.get(username)
+    if user_data and check_password_hash(user_data["password"], password):
+        session['username'] = username
         if user_data.get('is_admin'):
             return redirect(url_for('admin_dashboard'))
-        return redirect(url_for('showcase', username=request.form["username"]))
+        return redirect(url_for('showcase', username=username))
     return "Invalid username or password."
 
 @app.route("/logout")
