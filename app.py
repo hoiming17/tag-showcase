@@ -23,11 +23,8 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = 'a_very_secret_key'
 
-# --- Browserless Configuration for Pyppeteer ---
-# IMPORTANT: Pyppeteer requires the WebSockets (wss://) endpoint.
-# Replace 'YOUR_API_KEY' with your actual Browserless API key
-# BROWSERLESS_URL = f"wss://production-sfo.browserless.io?token={os.environ.get('BROWSERLESS_API_KEY', 'YOUR_API_KEY')}"
-BROWSERLESS_URL = "wss://production-sfo.browserless.io?token=2SuXmL5VzNoK49g3ef51708a0844cbbb2e883538fcb2e02d8"
+# --- NO BROWSERLESS CONFIGURATION NEEDED ANYMORE ---
+# The application will now use a local Chromium browser installed via Dockerfile.
 
 
 # --- Helper Functions ---
@@ -47,33 +44,37 @@ def save_users(users_data):
     with open('users.json', 'w') as f:
         json.dump(users_data, f, indent=4)
 
-# --- UPDATED scrape_card_info function to use Pyppeteer ---
+# --- UPDATED scrape_card_info function to use Pyppeteer locally ---
 async def scrape_card_info_async(cert_number):
-    """Asynchronously scrapes card info using Pyppeteer."""
+    """Asynchronously scrapes card info using a local Chromium."""
     browser = None
     try:
         url = f"https://my.taggrading.com/card/{cert_number}"
-        logger.info(f"Starting async scrape for {cert_number} from URL: {url} using Pyppeteer.")
+        logger.info(f"Starting async scrape for {cert_number} from URL: {url} using local Chromium.")
         
-        # Connect to the remote Browserless service
+        # Connect to the local Chromium browser installed in the Docker container
         browser = await launch(
-            browserWSEndpoint=BROWSERLESS_URL,
-            args=['--no-sandbox', '--disable-dev-shm-usage']
+            executablePath='/usr/bin/chromium',  # Path to the locally installed Chromium
+            args=['--no-sandbox', '--disable-dev-shm-usage'],
+            # The 'dumpio' argument can be useful for debugging browser output
+            # dumpio=True
         )
         
         page = await browser.newPage()
         await page.setViewport({'width': 1920, 'height': 1080})
-        await page.goto(url, {'waitUntil': 'networkidle2', 'timeout': 60000}) # 60-second timeout in milliseconds
-        logger.info("Page loaded successfully via Pyppeteer. Waiting for dynamic content.")
+        # Added a 60-second timeout for page navigation
+        await page.goto(url, {'waitUntil': 'networkidle2', 'timeout': 60000}) 
+        logger.info("Page loaded successfully via local Chromium. Waiting for dynamic content.")
         
-        # Get the page source after dynamic content has loaded
-        content = await page.content()
-        soup = BeautifulSoup(content, "html.parser")
+        # Give some extra time for JavaScript to render, if necessary
+        await asyncio.sleep(3) 
+
+        page_source = await page.content()
+        soup = BeautifulSoup(page_source, "html.parser")
         logger.info("Page source obtained and parsed.")
 
         line1, line2, line_subset, line3, line4 = "", "", "", "", ""
-        
-        # All your scraping logic remains the same below
+
         try:
             player_label = soup.find("span", string="Player name:")
             if player_label:
@@ -150,14 +151,7 @@ async def scrape_card_info_async(cert_number):
         except Exception as e:
             line4 = ""
             logger.error(f"Error scraping grade info: {e}")
-            
-        return {
-            "cert_number": cert_number, "line1": line1, "line2": line2, "line_subset": line_subset,
-            "line3": line3, "line4": line4, "hashtags": [],
-            "image": f"https://devblock-tag.s3.us-west-2.amazonaws.com/slab-images/{cert_number}_Slabbed_FRONT.jpg",
-            "link": url
-        }
-            
+
     except (PyppeteerError, TimeoutError, Exception) as e:
         logger.error(f"An error occurred during Pyppeteer scrape: {e}")
         return {
@@ -170,6 +164,13 @@ async def scrape_card_info_async(cert_number):
         if browser:
             await browser.close()
             logger.info("Pyppeteer browser closed.")
+
+    image_url = f"https://devblock-tag.s3.us-west-2.amazonaws.com/slab-images/{cert_number}_Slabbed_FRONT.jpg"
+    logger.info(f"Scrape completed. Result: Player: {line1}, Set: {line2}, Grade: {line4}")
+    return {
+        "cert_number": cert_number, "line1": line1, "line2": line2, "line_subset": line_subset,
+        "line3": line3, "line4": line4, "hashtags": [], "image": image_url, "link": url
+    }
 
 def get_grade_for_sort(card):
     line4 = card.get('line4', '')
