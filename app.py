@@ -57,9 +57,7 @@ async def scrape_card_info_async(cert_number):
         
         # Connect to the remote Browserless service
         browser = await launch(
-            {
-                'browserWSEndpoint': BROWSERLESS_URL
-            },
+            browserWSEndpoint=BROWSERLESS_URL,
             args=['--no-sandbox', '--disable-dev-shm-usage']
         )
         
