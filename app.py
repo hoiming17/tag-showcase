@@ -30,10 +30,8 @@ def scrape_card_data(cert_number):
     data = {}
     
     # --- Find Player Name, Set Name, Subset, and Variation ---
-    # These are all in a span immediately following the anchor span
-    
+    # Now searching for the exact strings including capitalization and colon
     try:
-        # Player Name
         player_name_anchor = soup.find('span', string='Player name:')
         data['player_name'] = player_name_anchor.find_next_sibling('span').get_text(strip=True)
     except AttributeError:
@@ -41,7 +39,6 @@ def scrape_card_data(cert_number):
         logging.warning("Player name not found.")
 
     try:
-        # Set Name
         set_name_anchor = soup.find('span', string='Set name:')
         data['set_name'] = set_name_anchor.next_sibling.strip()
     except AttributeError:
@@ -49,7 +46,6 @@ def scrape_card_data(cert_number):
         logging.warning("Set name not found.")
         
     try:
-        # Subset
         subset_anchor = soup.find('span', string='Subset:')
         subset_val = subset_anchor.next_sibling.strip()
         data['subset'] = subset_val if subset_val and subset_val != '-' else 'N/A'
@@ -58,7 +54,6 @@ def scrape_card_data(cert_number):
         logging.warning("Subset not found.")
         
     try:
-        # Variation
         variation_anchor = soup.find('span', string='Variation:')
         variation_val = variation_anchor.next_sibling.strip()
         data['variation'] = variation_val if variation_val and variation_val != '-' else 'N/A'
@@ -67,17 +62,14 @@ def scrape_card_data(cert_number):
         logging.warning("Variation not found.")
 
     # --- Find TAG Score, Grade, and Grade Name ---
-    # These are in divs near the "TAG Score" text
-    
+    # This section was not the source of the previous error, but we'll include it for completeness
     try:
         tag_score_div = soup.find('div', string=re.compile(r'TAG Score'))
         if tag_score_div:
-            # The score is in the div right before the anchor div's parent
             parent_div = tag_score_div.find_parent('div')
             score_div = parent_div.find_previous_sibling('div').find('div')
             data['tag_score'] = score_div.get_text(strip=True)
 
-            # The grade is a sibling of the score parent
             grade_container = parent_div.find_next_sibling('div')
             data['grade'] = grade_container.find('div').get_text(strip=True)
             data['grade_name'] = grade_container.find_all('div')[-1].get_text(strip=True)
@@ -92,12 +84,10 @@ def scrape_card_data(cert_number):
 
 @app.route('/')
 def index():
-    """Serves the main HTML page."""
     return render_template('index.html')
 
 @app.route('/scrape', methods=['POST'])
 def scrape():
-    """Handles the scrape request from the front-end."""
     cert_number = request.json.get('cert_number')
     if not cert_number:
         logging.error("No cert number provided in the request.")
