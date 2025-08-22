@@ -6,10 +6,23 @@ import re
 import logging
 from flask import Flask, render_template, request, jsonify
 
-# Configure logging to show messages in the console (Render's logs)
+# Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 app = Flask(__name__)
+
+def get_text_after_anchor(soup, anchor_text):
+    """Finds an anchor span and returns the text of its next sibling or text node."""
+    anchor_span = soup.find('span', text=re.compile(f'^{anchor_text}:'))
+    if anchor_span:
+        next_sibling = anchor_span.next_sibling
+        if next_sibling and next_sibling.name:
+            # If the sibling is an HTML tag, get its text
+            return next_sibling.get_text(strip=True)
+        elif next_sibling:
+            # If the sibling is a text node
+            return next_sibling.strip()
+    return 'N/A'
 
 def scrape_card_data(cert_number):
     """
@@ -20,81 +33,48 @@ def scrape_card_data(cert_number):
 
     try:
         response = requests.get(url, timeout=10)
-        response.raise_for_status()  # This will raise an HTTPError for bad responses (4xx or 5xx)
+        response.raise_for_status()
         logging.info(f"Successfully fetched page for {cert_number}")
     except requests.exceptions.RequestException as e:
         logging.error(f"Error fetching page for {cert_number}: {e}")
         return {"error": "Failed to fetch card data. Please check the cert number or URL."}
 
     soup = BeautifulSoup(response.text, 'html.parser')
-    
     data = {}
     
-    # Use the CSS selector to find the container div for all card info
-    card_info_container = soup.find('div', class_=re.compile(r'jss\d+'))
-    if not card_info_container:
-        logging.warning("Could not find card information container. Selectors may be outdated.")
-        return {"error": "Could not find card information on the page. The cert number may be invalid."}
-
-    # Find the data using the provided HTML structure
-    player_name_span = card_info_container.find('span', class_=re.compile(r'jss\d+'))
-    if player_name_span:
-        data['player_name'] = player_name_span.get_text(strip=True)
-    else:
-        data['player_name'] = 'N/A'
-        logging.warning("Player name selector failed to find the element.")
-        
-    set_name_div = card_info_container.find('div', class_=re.compile(r'jss\d+'))
-    if set_name_div:
-        set_name_span = set_name_div.find('span', text=re.compile(r'Set name:'))
-        if set_name_span:
-            set_name_text = ''.join(set_name_span.next_siblings).strip()
-            data['set_name'] = set_name_text if set_name_text else 'N/A'
-        else:
-            data['set_name'] = 'N/A'
-            logging.warning("Set name span not found.")
-    else:
-        data['set_name'] = 'N/A'
-        logging.warning("Set name container div not found.")
-        
-    # Repeat the pattern for other fields
-    subset_div = card_info_container.find('div', class_=re.compile(r'jss\d+'))
-    if subset_div:
-        subset_span = subset_div.find('span', text=re.compile(r'Subset:'))
-        if subset_span:
-            subset_text = ''.join(subset_span.next_siblings).strip()
-            data['subset'] = subset_text if subset_text and subset_text != '-' else 'N/A'
-        else:
-            data['subset'] = 'N/A'
-            logging.warning("Subset span not found.")
-    else:
-        data['subset'] = 'N/A'
-        logging.warning("Subset container div not found.")
+    # Use the static text anchors to find the data
+    data['player_name'] = get_text_after_anchor(soup, 'Player name')
+    data['set_name'] = get_text_after_anchor(soup, 'Set name')
+    data['subset'] = get_text_after_anchor(soup, 'Subset')
+    data['variation'] = get_text_after_anchor(soup, 'Variation')
     
-    variation_div = card_info_container.find('div', class_=re.compile(r'jss\d+'))
-    if variation_div:
-        variation_span = variation_div.find('span', text=re.compile(r'Variation:'))
-        if variation_span:
-            variation_text = ''.join(variation_span.next_siblings).strip()
-            data['variation'] = variation_text if variation_text and variation_text != '-' else 'N/A'
-        else:
-            data['variation'] = 'N/A'
-            logging.warning("Variation span not found.")
+    # --- Special case for TAG Score, Grade, and Grade Name ---
+    # We find the "TAG Score" anchor, then navigate to its parent, then to the siblings
+    tag_score_anchor = soup.find('div', text=re.compile(r'TAG Score'))
+    if tag_score_anchor:
+        # Go up to the parent container
+        score_parent_div = tag_score_anchor.parent
+        if score_parent_div:
+            # Find the div with the score (e.g., '100')
+            score_div = score_parent_div.find('div', class_=re.compile(r'jss\d+'))
+            data['tag_score'] = score_div.get_text(strip=True) if score_div else 'N/A'
+            
+            # Find the grade container which is a sibling of the score parent
+            grade_container = score_parent_div.find_next_sibling('div')
+            if grade_container:
+                grade_div = grade_container.find('div', class_=re.compile(r'jss\d+'))
+                data['grade'] = grade_div.get_text(strip=True) if grade_div else 'N/A'
+                
+                grade_name_div = grade_container.find('div', class_=re.compile(r'jss\d+'))
+                data['grade_name'] = grade_name_div.get_text(strip=True) if grade_name_div else 'N/A'
+            else:
+                data['grade'] = 'N/A'
+                data['grade_name'] = 'N/A'
     else:
-        data['variation'] = 'N/A'
-        logging.warning("Variation container div not found.")
-
-    tag_score_div = soup.find('div', class_=re.compile(r'jss\d+'))
-    data['tag_score'] = tag_score_div.get_text(strip=True) if tag_score_div else 'N/A'
-    if not tag_score_div: logging.warning("TAG Score div not found.")
-    
-    grade_div = soup.find('div', class_=re.compile(r'jss\d+'))
-    data['grade'] = grade_div.get_text(strip=True) if grade_div else 'N/A'
-    if not grade_div: logging.warning("Grade div not found.")
-
-    grade_name_div = soup.find('div', class_=re.compile(r'jss\d+'))
-    data['grade_name'] = grade_name_div.get_text(strip=True) if grade_name_div else 'N/A'
-    if not grade_name_div: logging.warning("Grade name div not found.")
+        logging.warning("TAG Score anchor not found.")
+        data['tag_score'] = 'N/A'
+        data['grade'] = 'N/A'
+        data['grade_name'] = 'N/A'
 
     logging.info(f"Finished scraping. Data collected: {data}")
     return data
