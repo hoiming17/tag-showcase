@@ -23,7 +23,7 @@ app.secret_key = 'a_very_secret_key'
 # You can also store this in an environment variable on Render for security:
 # BROWSERLESS_API_KEY = os.environ.get('BROWSERLESS_API_KEY', 'YOUR_API_KEY')
 # BROWSERLESS_URL = f"https://chrome.browserless.io/webdriver?token={BROWSERLESS_API_KEY}"
-BROWSERLESS_URL = "https://chrome.browserless.io/webdriver?token=2SuXmL5VzNoK49g3ef51708a0844cbbb2e883538fcb2e02d8"
+BROWSERLESS_URL = "https://production-sfo.browserless.io/webdriver?token=2SuXmL5VzNoK49g3ef51708a0844cbbb2e883538fcb2e02d8"
 
 
 # --- Helper Functions ---
