@@ -1,51 +1,82 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Card Collection</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAG Scraper</title>
     <style>
-        .card {
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            padding: 15px;
-            margin: 15px;
-            display: inline-block;
-            text-align: center;
-            width: 250px;
-        }
-        img {
-            max-width: 100%;
-            border-radius: 8px;
-        }
-        button {
-            background: red;
-            color: white;
-            padding: 6px 12px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
+        body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; }
+        .container { margin-top: 20px; }
+        input[type="text"] { width: 100%; padding: 10px; margin-bottom: 10px; }
+        button { padding: 10px 20px; cursor: pointer; }
+        #results { border: 1px solid #ccc; padding: 20px; margin-top: 20px; }
+        .data-point { margin-bottom: 10px; }
+        .data-point span { font-weight: bold; }
     </style>
 </head>
 <body>
-    <h1>My Collection</h1>
-
-    <form action="/add" method="post">
-        <input type="text" name="cert" placeholder="Enter Cert Number" required>
-        <button type="submit">Add Card</button>
-    </form>
-
-    <div>
-        {% for card in collection %}
-        <div class="card">
-            <h2>{{ card.name }}</h2>
-            <p><strong>Set:</strong> {{ card.set }}</p>
-            <p><strong>Number:</strong> {{ card.number }}</p>
-            <p><strong>Rarity:</strong> {{ card.rarity }}</p>
-            <img src="{{ card.img }}" alt="{{ card.name }}">
-            <p><a href="{{ card.webpage }}" target="_blank">View on TAG</a></p>
-            <a href="/remove/{{ card.cert }}"><button>Remove</button></a>
-        </div>
-        {% endfor %}
+    <h1>TAG Grading Card Scraper</h1>
+    <div class="container">
+        <p>Enter a TAG Grading cert number (e.g., W1200368) and click "Add Card" to scrape its details.</p>
+        <form id="scrape-form">
+            <input type="text" id="cert-number" name="cert-number" placeholder="Enter cert number..." required>
+            <button type="submit">Add Card</button>
+        </form>
     </div>
+    
+    <div id="results">
+        <h2>Card Information</h2>
+        <p id="message"></p>
+        <div id="card-info"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('scrape-form');
+        const certInput = document.getElementById('cert-number');
+        const resultsDiv = document.getElementById('results');
+        const cardInfoDiv = document.getElementById('card-info');
+        const messagePara = document.getElementById('message');
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const certNumber = certInput.value.trim();
+            if (!certNumber) {
+                alert('Please enter a cert number.');
+                return;
+            }
+
+            messagePara.textContent = 'Scraping card data...';
+            cardInfoDiv.innerHTML = ''; // Clear previous results
+
+            try {
+                const response = await fetch('/scrape', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cert_number: certNumber })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    messagePara.textContent = 'Data scraped successfully!';
+                    cardInfoDiv.innerHTML = `
+                        <div class="data-point"><span>Player Name:</span> ${data.player_name}</div>
+                        <div class="data-point"><span>Set Name:</span> ${data.set_name}</div>
+                        <div class="data-point"><span>Subset:</span> ${data.subset}</div>
+                        <div class="data-point"><span>Variation:</span> ${data.variation}</div>
+                        <div class="data-point"><span>TAG Score:</span> ${data.tag_score}</div>
+                        <div class="data-point"><span>Grade:</span> ${data.grade}</div>
+                        <div class="data-point"><span>Grade Name:</span> ${data.grade_name}</div>
+                    `;
+                } else {
+                    messagePara.textContent = `Error: ${data.error || 'An unexpected error occurred.'}`;
+                }
+
+            } catch (error) {
+                console.error('Fetch error:', error);
+                messagePara.textContent = 'Error: Failed to connect to the server.';
+            }
+        });
+    </script>
 </body>
 </html>

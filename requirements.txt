@@ -1,7 +1,4 @@
-Flask
-gunicorn
+# requirements.txt
+flask
 requests
 beautifulsoup4
-pyppeteer
-websockets
-nest-asyncio
