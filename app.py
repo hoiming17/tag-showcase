@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, j
 from werkzeug.security import generate_password_hash, check_password_hash
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options # Import Options for Chrome
+from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
 import os
 import time
@@ -22,7 +22,7 @@ app.secret_key = 'a_very_secret_key'
 # IMPORTANT: Replace 'YOUR_API_KEY' with your actual Browserless API key
 # You can also store this in an environment variable on Render for security:
 # BROWSERLESS_API_KEY = os.environ.get('BROWSERLESS_API_KEY', 'YOUR_API_KEY')
-# BROWSERLESS_URL = f"https://chrome.browserless.io/webdriver?token={BROWSERLESS_API_KEY}"
+# BROWSERLESS_URL = f"https://production-sfo.browserless.io/webdriver?token={BROWSERLESS_API_KEY}"
 BROWSERLESS_URL = "https://production-sfo.browserless.io/webdriver?token=2SuXmL5VzNoK49g3ef51708a0844cbbb2e883538fcb2e02d8"
 
 
@@ -48,12 +48,11 @@ def scrape_card_info(cert_number):
     url = f"https://my.taggrading.com/card/{cert_number}"
     logger.info(f"Starting scrape for {cert_number} from URL: {url} using Browserless.")
 
-     options = Options()
-    # These are still recommended
+    options = Options()
+    # These are crucial for running headless Chrome remotely
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=1920,1080")
-
     # This is the modern, preferred way to set headless mode
     options.headless = True
     
