@@ -11,19 +11,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 app = Flask(__name__)
 
-def get_text_after_anchor(soup, anchor_text):
-    """Finds an anchor span and returns the text of its next sibling or text node."""
-    anchor_span = soup.find('span', text=re.compile(f'^{anchor_text}:'))
-    if anchor_span:
-        next_sibling = anchor_span.next_sibling
-        if next_sibling and next_sibling.name:
-            # If the sibling is an HTML tag, get its text
-            return next_sibling.get_text(strip=True)
-        elif next_sibling:
-            # If the sibling is a text node
-            return next_sibling.strip()
-    return 'N/A'
-
 def scrape_card_data(cert_number):
     """
     Scrapes a single TAG Grading card page for key information.
@@ -42,36 +29,60 @@ def scrape_card_data(cert_number):
     soup = BeautifulSoup(response.text, 'html.parser')
     data = {}
     
-    # Use the static text anchors to find the data
-    data['player_name'] = get_text_after_anchor(soup, 'Player name')
-    data['set_name'] = get_text_after_anchor(soup, 'Set name')
-    data['subset'] = get_text_after_anchor(soup, 'Subset')
-    data['variation'] = get_text_after_anchor(soup, 'Variation')
+    # --- Find Player Name, Set Name, Subset, and Variation ---
+    # These are all in a span immediately following the anchor span
     
-    # --- Special case for TAG Score, Grade, and Grade Name ---
-    # We find the "TAG Score" anchor, then navigate to its parent, then to the siblings
-    tag_score_anchor = soup.find('div', text=re.compile(r'TAG Score'))
-    if tag_score_anchor:
-        # Go up to the parent container
-        score_parent_div = tag_score_anchor.parent
-        if score_parent_div:
-            # Find the div with the score (e.g., '100')
-            score_div = score_parent_div.find('div', class_=re.compile(r'jss\d+'))
-            data['tag_score'] = score_div.get_text(strip=True) if score_div else 'N/A'
-            
-            # Find the grade container which is a sibling of the score parent
-            grade_container = score_parent_div.find_next_sibling('div')
-            if grade_container:
-                grade_div = grade_container.find('div', class_=re.compile(r'jss\d+'))
-                data['grade'] = grade_div.get_text(strip=True) if grade_div else 'N/A'
-                
-                grade_name_div = grade_container.find('div', class_=re.compile(r'jss\d+'))
-                data['grade_name'] = grade_name_div.get_text(strip=True) if grade_name_div else 'N/A'
-            else:
-                data['grade'] = 'N/A'
-                data['grade_name'] = 'N/A'
-    else:
-        logging.warning("TAG Score anchor not found.")
+    try:
+        # Player Name
+        player_name_anchor = soup.find('span', string='Player name:')
+        data['player_name'] = player_name_anchor.find_next_sibling('span').get_text(strip=True)
+    except AttributeError:
+        data['player_name'] = 'N/A'
+        logging.warning("Player name not found.")
+
+    try:
+        # Set Name
+        set_name_anchor = soup.find('span', string='Set name:')
+        data['set_name'] = set_name_anchor.next_sibling.strip()
+    except AttributeError:
+        data['set_name'] = 'N/A'
+        logging.warning("Set name not found.")
+        
+    try:
+        # Subset
+        subset_anchor = soup.find('span', string='Subset:')
+        subset_val = subset_anchor.next_sibling.strip()
+        data['subset'] = subset_val if subset_val and subset_val != '-' else 'N/A'
+    except AttributeError:
+        data['subset'] = 'N/A'
+        logging.warning("Subset not found.")
+        
+    try:
+        # Variation
+        variation_anchor = soup.find('span', string='Variation:')
+        variation_val = variation_anchor.next_sibling.strip()
+        data['variation'] = variation_val if variation_val and variation_val != '-' else 'N/A'
+    except AttributeError:
+        data['variation'] = 'N/A'
+        logging.warning("Variation not found.")
+
+    # --- Find TAG Score, Grade, and Grade Name ---
+    # These are in divs near the "TAG Score" text
+    
+    try:
+        tag_score_div = soup.find('div', string=re.compile(r'TAG Score'))
+        if tag_score_div:
+            # The score is in the div right before the anchor div's parent
+            parent_div = tag_score_div.find_parent('div')
+            score_div = parent_div.find_previous_sibling('div').find('div')
+            data['tag_score'] = score_div.get_text(strip=True)
+
+            # The grade is a sibling of the score parent
+            grade_container = parent_div.find_next_sibling('div')
+            data['grade'] = grade_container.find('div').get_text(strip=True)
+            data['grade_name'] = grade_container.find_all('div')[-1].get_text(strip=True)
+    except AttributeError:
+        logging.warning("TAG Score or Grade data not found.")
         data['tag_score'] = 'N/A'
         data['grade'] = 'N/A'
         data['grade_name'] = 'N/A'
