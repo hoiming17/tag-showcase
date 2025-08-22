@@ -63,7 +63,7 @@ async def scrape_card_info_async(cert_number):
         
         page = await browser.newPage()
         await page.setViewport({'width': 1920, 'height': 1080})
-        await page.goto(url, {'waitUntil': 'networkidle2'})
+        await page.goto(url, {'waitUntil': 'networkidle2', 'timeout': 60000}) # 60-second timeout in milliseconds
         logger.info("Page loaded successfully via Pyppeteer. Waiting for dynamic content.")
         
         # Get the page source after dynamic content has loaded
