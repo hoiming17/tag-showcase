@@ -49,11 +49,16 @@ def scrape_card_info(cert_number):
     logger.info(f"Starting scrape for {cert_number} from URL: {url} using Browserless.")
 
     options = Options()
-    # These are the bare minimum, most compatible options for a remote headless browser.
-    # The '--headless' argument is the most widely supported.
-    options.add_argument('--headless')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
+    options.headless = True
+    # The 'set_capability' method is the most robust way to pass
+    # Browserless-specific options to the remote server.
+    options.set_capability("browserless:options", {
+        "args": [
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--window-size=1920,1080",
+        ]
+    })
     
     driver = None
     try:
